@@ -1,0 +1,315 @@
+workflow_id: impl_build_mapping
+version: 0.1.15
+display_name: 'Web Scraper: build mapping'
+description: Implementation of the composite action build_mapping (ADR 0065). The mapping agent writes a candidate, test_mapping checks it on the samples, and a failed candidate goes back to the agent with its per-field failures, at most max_refinements times (default 2). Not a workflow to link or run; it runs only as the action.
+enabled: true
+trigger:
+  confidence_threshold: 0.0
+settings:
+  callable:
+    enabled: true
+    trigger_channels:
+      - parent_workflow
+    input_mode: fields
+    strict_inputs: true
+    expected_inputs:
+      - name: site
+        type: string
+        required: true
+        description: Site key of the target site.
+      - name: sample_ids
+        type: array
+        required: true
+        description: Sample ids to test the candidate on.
+      - name: samples
+        type: array
+        required: true
+        description: Distilled sample pages for the agent.
+      - name: extraction_instructions
+        type: paragraph
+        required: false
+        description: What to extract, in the user's words.
+      - name: fields
+        type: array
+        required: false
+        description: Field names to extract.
+      - name: required_fields
+        type: array
+        required: false
+        description: Fields a record must have.
+      - name: required_fill_threshold
+        type: number
+        required: false
+        description: Share of samples each required field must fill (default 0.9).
+      - name: extraction_mode
+        type: string
+        required: false
+        description: auto, structured_data or selectors.
+      - name: max_refinements
+        type: number
+        required: false
+        description: Refinements after the first generation (default 2).
+      - name: previous_mappings
+        type: array
+        required: false
+        description: On a repair, the active mapping that broke.
+      - name: previous_failures
+        type: object
+        required: false
+        description: On a repair, the fill rates the service reported.
+      - name: suggested_template_id
+        type: string
+        required: false
+        description: Template id for a new template.
+      - name: target_page_selector
+        type: string
+        required: false
+        description: The operator's product page selector; the agent puts it into every template's match.selector (the test warns otherwise).
+      - name: variant_sample_ids
+        type: array
+        required: false
+        description: Sample ids whose pages carry variant data (one record per variant needs a variants block).
+      - name: ai_choose_fields
+        type: boolean
+        required: false
+        description: The agent adds the fields the samples really carry, beyond the field list.
+      - name: fields_hint
+        type: string
+        required: false
+        description: The operator's hint for those fields.
+    output_mode: variables
+    expected_outputs:
+      - name: mappings
+        type: array
+        required: true
+        description: The last candidate, one mapping per template.
+      - name: passed
+        type: boolean
+        required: true
+        description: True when the candidate passed test_mapping.
+      - name: field_results
+        type: array
+        required: false
+        description: Per field - fill rate, pass flag, example values.
+      - name: failures
+        type: array
+        required: false
+        description: What still fails.
+      - name: attempts
+        type: number
+        required: true
+        description: Generations tried.
+      - name: summary
+        type: string
+        required: false
+        description: One line per field.
+    expected_artifacts: []
+    side_effects: []
+  action_implementation:
+    action_id: build_mapping
+    connections:
+      - slot: profile
+        extension_id: flowsteward.web-scraper
+        connection_type_ids:
+          - scraper_profile
+  execution_graph:
+    schema_version: 1
+    entry: {kind: step, id: prepare}
+    edges:
+      - source: {kind: step, id: prepare}
+        outcome: {name: success}
+        target: {kind: step, id: write_samples}
+        rework: false
+      - source: {kind: step, id: write_samples}
+        outcome: {name: success}
+        target: {kind: step, id: clear_answer}
+        rework: false
+      - source: {kind: step, id: clear_answer}
+        outcome: {name: success}
+        target: {kind: step, id: write_mapping}
+        rework: false
+      - source: {kind: step, id: write_mapping}
+        outcome: {name: success}
+        target: {kind: step, id: test_candidate}
+        rework: false
+      - source: {kind: step, id: test_candidate}
+        outcome: {name: success}
+        target: {kind: step, id: candidate_passed}
+        rework: false
+      - source: {kind: step, id: candidate_passed}
+        outcome: {name: 'true'}
+        target: {kind: step, id: done_passed}
+        rework: false
+      - source: {kind: step, id: candidate_passed}
+        outcome: {name: 'false'}
+        target: {kind: step, id: refinement_left}
+        rework: false
+      - source: {kind: step, id: refinement_left}
+        outcome: {name: 'true'}
+        target: {kind: step, id: write_samples}
+        rework: true
+        rework_limit: 5
+      - source: {kind: step, id: refinement_left}
+        outcome: {name: 'false'}
+        target: {kind: step, id: done_not_passed}
+        rework: false
+  canvas_annotations:
+    - id: build_mapping_loop
+      text: "## Build and refine\nThe agent writes a candidate mapping, test_mapping applies it to the samples. A failed candidate goes back to the agent with the per-field failures. test_mapping counts the attempts: after the first generation plus max_refinements (default 2) the action returns passed: false with the last candidate."
+      x: 40
+      y: -220
+      width: 420
+      height: 180
+builder_metadata_jsonb:
+  purpose: Body of the composite action build_mapping.
+  use_cases:
+    - build a first mapping before a crawl
+    - repair a mapping after a mapping_required event
+  anti_use_cases:
+    - running directly
+  composition_role: action_implementation
+  determinism_level: agentic
+  safe_for_auto_use: false
+tags:
+  - web-scraper
+  - action-implementation
+steps:
+  - step_id: prepare
+    display_name: Start from the previous mapping
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.attempt: 0
+          state.mappings:
+            source: state.inputs.previous_mappings
+          state.failures: []
+          state.service_failures:
+            source: state.inputs.previous_failures
+  - step_id: write_samples
+    display_name: Samples for the agent
+    step_kind: connector
+    connector_id: extension.flowsteward.web-scraper
+    connection_binding_jsonb:
+      slot: profile
+    override:
+      connector:
+        extension_id: flowsteward.web-scraper
+        operation_id: write_samples_file
+    input_mapping_jsonb:
+      site: state.inputs.site
+      samples: state.inputs.samples
+      extraction_instructions: state.inputs.extraction_instructions|default:""
+      fields: state.inputs.fields|default:[]
+      required_fields: state.inputs.required_fields|default:[]
+      suggested_template_id: state.inputs.suggested_template_id|default:""
+      target_page_selector: state.inputs.target_page_selector|default:""
+      ai_choose_fields: state.inputs.ai_choose_fields|default:false
+      fields_hint: state.inputs.fields_hint|default:""
+      previous_mappings: state.mappings
+      failures: state.failures
+      service_failures: state.service_failures
+      attempt: state.attempt
+    output_mapping_jsonb:
+      artifact_handle: state.samples_file
+      sample_count: state.sample_count
+      html_chars_per_sample: state.sample_html_budget
+    description: Writes samples.md for the agent - the task, the previous candidate with its failures,
+      and every sample page. Step inputs reach a model only as a 4000-character excerpt; a bound text
+      file is attached whole. Runs again before every refinement.
+  - step_id: clear_answer
+    display_name: Clear the last answer
+    step_kind: set_variable
+    description: An answer without mappings_json must not leave the previous candidate to be tested again.
+    override:
+      set_variable:
+        assignments:
+          state.mappings_json: ""
+  - step_id: write_mapping
+    display_name: Write the mapping (AI)
+    step_kind: agent
+    agent_id: scraper_mapping_author
+    skill_id: build_extraction_mapping
+    override:
+      agent:
+        file_bindings:
+          - name: samples
+            source: state.samples_file
+    input_mapping_jsonb:
+      extraction_instructions: state.inputs.extraction_instructions
+      fields: state.inputs.fields
+      required_fields: state.inputs.required_fields
+      extraction_mode: state.inputs.extraction_mode
+      suggested_template_id: state.inputs.suggested_template_id
+      target_page_selector: state.inputs.target_page_selector
+      variant_sample_ids: state.inputs.variant_sample_ids
+      ai_choose_fields: state.inputs.ai_choose_fields
+      fields_hint: state.inputs.fields_hint
+      previous_mappings: state.mappings
+      failures: state.failures
+      service_failures: state.service_failures
+      attempt: state.attempt
+    output_mapping_jsonb:
+      mappings_json: state.mappings_json
+      notes: state.mapping_notes
+  - step_id: test_candidate
+    display_name: Test the mapping on the samples
+    step_kind: connector
+    connector_id: extension.flowsteward.web-scraper
+    connection_binding_jsonb:
+      slot: profile
+    override:
+      connector:
+        extension_id: flowsteward.web-scraper
+        operation_id: test_mapping
+    input_mapping_jsonb:
+      site: state.inputs.site
+      mappings: state.mappings
+      mappings_json: state.mappings_json
+      sample_ids: state.inputs.sample_ids
+      required_fill_threshold: state.inputs.required_fill_threshold|default:0.9
+      required_fields: state.inputs.required_fields|default:[]
+      extraction_mode: state.inputs.extraction_mode|default:"auto"
+      attempt: state.attempt
+      max_refinements: state.inputs.max_refinements|default:2
+      target_page_selector: state.inputs.target_page_selector|default:""
+      variant_sample_ids: state.inputs.variant_sample_ids|default:[]
+    output_mapping_jsonb:
+      passed: state.passed
+      mappings: state.mappings
+      field_results: state.field_results
+      failures: state.failures
+      attempt: state.attempt
+      attempts: state.attempts
+      can_refine: state.can_refine
+      summary: state.summary
+  - step_id: candidate_passed
+    display_name: Passed?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.passed
+          operator: truthy
+  - step_id: refinement_left
+    display_name: Refinement left?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.can_refine
+          operator: truthy
+  - step_id: done_passed
+    display_name: Mapping passed
+    step_kind: stop_success
+    override:
+      stop_success:
+        message: The mapping passed the test on the samples.
+  - step_id: done_not_passed
+    display_name: No passing mapping
+    step_kind: stop_success
+    override:
+      stop_success:
+        message: No candidate passed within the refinements; the last candidate and its failures are returned with passed false.
+groups: []
+for_each: []

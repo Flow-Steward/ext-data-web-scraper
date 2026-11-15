@@ -1,0 +1,24 @@
+Flow Steward Web Scraper extension
+Copyright 2026 Flow Steward contributors
+
+Licensed under the Apache License, Version 2.0 (included in LICENSE).
+
+This extension is a client of the separate Web Scraper service
+(web-scraper-service). It contains no third-party code; its only runtime
+dependency is the Flow Steward extension SDK, which the platform provides.
+
+The scraper service, installed and released separately, is built on:
+- Crawlee for Python, browserforge, impit (Apache-2.0)
+- apify-actor-docker base images (Apache-2.0)
+- Camoufox Python package (MIT); the Camoufox browser (MPL-2.0), used
+  unmodified as a separate program, including its cursor-humanising
+  component (LGPL-3.0), used unmodified inside the browser
+- extruct (BSD-3-Clause)
+See the service's own NOTICE for its complete list.
+
+Proxy and challenge-solver providers named in the profile presets (Oxylabs,
+Bright Data, Decodo, CapSolver, 2Captcha, Anti-Captcha,
+CapMonster Cloud) are trademarks of their respective owners. This project is
+independent of and unaffiliated with them.
+
+The icon is the Flow Steward wave mark used by the Flow Steward extensions.

@@ -1,0 +1,406 @@
+# The scraper_profile connection (task document 5.2). Flat field names: the platform
+# connection form saves secrets as flat strings, so the three proxy tiers are fixed
+# field groups proxy_tier1_* .. proxy_tier3_*.
+connection_types:
+- connection_type_id: scraper_profile
+  display_name: Scraper profile
+  description: 'One scraping profile: the scraper service with its token and webhook, default settings,
+    up to three proxy tiers and an optional challenge solver.'
+  config_schema:
+    type: object
+    additionalProperties: false
+    required:
+    - service_url
+    properties:
+      profile_name:
+        type: string
+        maxLength: 200
+        title: Profile name
+        description: Shown on the run page, for example 'No proxy' or 'Residential DE + solver'.
+      service_url:
+        type: string
+        format: uri
+        minLength: 1
+        maxLength: 2048
+        title: Service URL
+        description: Address of the scraper service, for example http://web-scraper:8080. A public address
+          must use https.
+      request_timeout_seconds:
+        type: integer
+        minimum: 5
+        maximum: 300
+        default: 60
+        title: Request timeout (seconds)
+        description: How long one call to the service may take. Analysis and samples always get at least
+          180 seconds.
+      webhook_url:
+        type: string
+        format: uri
+        maxLength: 2048
+        title: Webhook URL
+        description: URL of the signed incoming webhook of the imported 'Scraper events' workflow.
+      default_discovery_mode:
+        type: string
+        enum:
+        - auto
+        - sitemap
+        - crawl
+        - sitemap_and_crawl
+        default: auto
+        title: Discovery mode
+      default_fetch_mode:
+        type: string
+        enum:
+        - auto
+        - http
+        - browser
+        default: auto
+        title: Fetch mode
+      default_browser:
+        type: string
+        enum:
+        - auto
+        - camoufox
+        - chromium
+        default: camoufox
+        title: Browser
+      default_max_concurrency:
+        type: integer
+        minimum: 1
+        maximum: 64
+        default: 2
+        title: Concurrency
+      default_max_requests_per_minute:
+        type: integer
+        minimum: 1
+        maximum: 6000
+        default: 30
+        title: Requests per minute
+      default_delay_min_seconds:
+        type: number
+        minimum: 0
+        maximum: 60
+        default: 2
+        title: Minimum delay (seconds)
+      default_delay_max_seconds:
+        type: number
+        minimum: 0
+        maximum: 60
+        default: 5
+        title: Maximum delay (seconds)
+      default_max_retries:
+        type: integer
+        minimum: 0
+        maximum: 10
+        default: 3
+        title: Retries
+      default_block_heavy_resources:
+        type: boolean
+        default: true
+        title: Block heavy resources
+      default_sample_count:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 5
+        title: Samples for mapping
+      default_required_fill_threshold:
+        type: number
+        minimum: 0
+        maximum: 1
+        default: 0.9
+        title: Fill threshold for required fields
+      default_max_refinements:
+        type: integer
+        minimum: 0
+        maximum: 5
+        default: 2
+        title: Mapping refinements
+      default_max_repairs_per_template:
+        type: integer
+        minimum: 0
+        maximum: 10
+        default: 2
+        title: Repairs per template
+      default_max_repairs_per_job:
+        type: integer
+        minimum: 0
+        maximum: 50
+        default: 5
+        title: Repairs per run
+      default_max_clicks_per_job:
+        type: integer
+        minimum: 0
+        maximum: 1000
+        default: 20
+        title: Checkbox clicks per run
+      proxy_tier1_provider:
+        type: string
+        enum:
+        - none
+        - generic
+        - oxylabs
+        - bright_data
+        - decodo
+        - custom_list
+        title: Tier 1 provider
+        default: none
+      proxy_tier1_protocol:
+        type: string
+        enum:
+        - http
+        - https
+        - socks5
+        title: Tier 1 protocol
+      proxy_tier1_host:
+        type: string
+        maxLength: 253
+        title: Tier 1 host
+      proxy_tier1_port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        title: Tier 1 port
+      proxy_tier1_auth_mode:
+        type: string
+        enum:
+        - user_password
+        - ip_allowlist
+        default: user_password
+        title: Tier 1 authentication
+      proxy_tier1_country:
+        type: string
+        maxLength: 2
+        title: Tier 1 country
+      proxy_tier1_city:
+        type: string
+        maxLength: 64
+        title: Tier 1 city
+      proxy_tier1_session_mode:
+        type: string
+        enum:
+        - rotating
+        - sticky
+        default: rotating
+        title: Tier 1 session
+      proxy_tier1_sticky_minutes:
+        type: integer
+        minimum: 1
+        maximum: 1440
+        default: 10
+        title: Tier 1 sticky minutes
+      proxy_tier2_provider:
+        type: string
+        enum:
+        - none
+        - generic
+        - oxylabs
+        - bright_data
+        - decodo
+        - custom_list
+        title: Tier 2 provider
+        default: none
+      proxy_tier2_protocol:
+        type: string
+        enum:
+        - http
+        - https
+        - socks5
+        title: Tier 2 protocol
+      proxy_tier2_host:
+        type: string
+        maxLength: 253
+        title: Tier 2 host
+      proxy_tier2_port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        title: Tier 2 port
+      proxy_tier2_auth_mode:
+        type: string
+        enum:
+        - user_password
+        - ip_allowlist
+        default: user_password
+        title: Tier 2 authentication
+      proxy_tier2_country:
+        type: string
+        maxLength: 2
+        title: Tier 2 country
+      proxy_tier2_city:
+        type: string
+        maxLength: 64
+        title: Tier 2 city
+      proxy_tier2_session_mode:
+        type: string
+        enum:
+        - rotating
+        - sticky
+        default: rotating
+        title: Tier 2 session
+      proxy_tier2_sticky_minutes:
+        type: integer
+        minimum: 1
+        maximum: 1440
+        default: 10
+        title: Tier 2 sticky minutes
+      proxy_tier3_provider:
+        type: string
+        enum:
+        - none
+        - generic
+        - oxylabs
+        - bright_data
+        - decodo
+        - custom_list
+        title: Tier 3 provider
+        default: none
+      proxy_tier3_protocol:
+        type: string
+        enum:
+        - http
+        - https
+        - socks5
+        title: Tier 3 protocol
+      proxy_tier3_host:
+        type: string
+        maxLength: 253
+        title: Tier 3 host
+      proxy_tier3_port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        title: Tier 3 port
+      proxy_tier3_auth_mode:
+        type: string
+        enum:
+        - user_password
+        - ip_allowlist
+        default: user_password
+        title: Tier 3 authentication
+      proxy_tier3_country:
+        type: string
+        maxLength: 2
+        title: Tier 3 country
+      proxy_tier3_city:
+        type: string
+        maxLength: 64
+        title: Tier 3 city
+      proxy_tier3_session_mode:
+        type: string
+        enum:
+        - rotating
+        - sticky
+        default: rotating
+        title: Tier 3 session
+      proxy_tier3_sticky_minutes:
+        type: integer
+        minimum: 1
+        maximum: 1440
+        default: 10
+        title: Tier 3 sticky minutes
+      solver_provider:
+        type: string
+        enum:
+        - none
+        - capsolver
+        - two_captcha
+        - anti_captcha
+        - capmonster_cloud
+        title: Challenge solver
+        default: none
+      solver_endpoint:
+        type: string
+        format: uri
+        maxLength: 2048
+        title: Solver API address
+        description: Only to override the provider's default API address.
+      solver_max_solves_per_job:
+        type: integer
+        minimum: 0
+        maximum: 1000
+        default: 20
+        title: Solves per run
+      tier:
+        type: string
+        enum:
+        - all
+        - "1"
+        - "2"
+        - "3"
+        title: Proxy tier to test
+        description: The choice of the profile form's 'Test proxy tiers' button. The form saves it with
+          the profile; runs ignore it.
+  secret_schema:
+    type: object
+    additionalProperties: false
+    required:
+    - service_token
+    properties:
+      service_token:
+        type: string
+        minLength: 1
+        maxLength: 512
+        title: Service token
+        description: Bearer token of the scraper service.
+      webhook_signing_secret:
+        type: string
+        minLength: 16
+        maxLength: 512
+        title: Webhook signing secret
+        description: The secret the platform generated for the signed webhook of 'Scraper events'.
+      solver_api_key:
+        type: string
+        maxLength: 512
+        title: Solver API key
+      proxy_tier1_username:
+        type: string
+        maxLength: 512
+        title: Tier 1 user name
+      proxy_tier1_password:
+        type: string
+        maxLength: 512
+        title: Tier 1 password
+      proxy_tier1_proxy_urls:
+        type: string
+        maxLength: 200000
+        title: Tier 1 proxy list
+        description: 'For the custom list provider: proxy URLs scheme://user:password@host:port, separated
+          by spaces, commas or new lines.'
+      proxy_tier2_username:
+        type: string
+        maxLength: 512
+        title: Tier 2 user name
+      proxy_tier2_password:
+        type: string
+        maxLength: 512
+        title: Tier 2 password
+      proxy_tier2_proxy_urls:
+        type: string
+        maxLength: 200000
+        title: Tier 2 proxy list
+        description: 'For the custom list provider: proxy URLs scheme://user:password@host:port, separated
+          by spaces, commas or new lines.'
+      proxy_tier3_username:
+        type: string
+        maxLength: 512
+        title: Tier 3 user name
+      proxy_tier3_password:
+        type: string
+        maxLength: 512
+        title: Tier 3 password
+      proxy_tier3_proxy_urls:
+        type: string
+        maxLength: 200000
+        title: Tier 3 proxy list
+        description: 'For the custom list provider: proxy URLs scheme://user:password@host:port, separated
+          by spaces, commas or new lines.'
+  capabilities:
+    test_connection: true
+    live_request: true
+    workflow_trigger: false
+    callback_ingress: false
+  safety_profile:
+    uses_standard_http_sdk: true
+    follows_redirects: false
+    stores_secret_values: false

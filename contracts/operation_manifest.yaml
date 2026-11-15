@@ -1,0 +1,2539 @@
+# Contract V2 operations of the Web Scraper extension. Every operation except
+# build_mapping takes the scraper_profile connection chosen on the step;
+# build_mapping is a composite action (ADR 0065) whose connection is the slot
+# `profile` of its implementation workflow `impl_build_mapping`.
+operations:
+- operation_id: validate_config
+  display_name: Validate settings
+  description: Merge the run inputs and the profile defaults; the service checks every value against
+    its limits and names any field it refuses.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - &id001
+    name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Scraper profile
+    description: The scraper_profile connection chosen on the step.
+  - name: site_url
+    value_type: text
+    required: false
+    display_name: Site URL
+    description: Start page of the site, e.g. https://www.example.com/. In url_list mode enter the site's home page; only the listed URLs are scraped.
+  - name: extraction_instructions
+    value_type: text
+    required: false
+    display_name: What to extract
+    description: 'In words: which pages and which data, e.g. ''Product pages: name, price in EUR, article number, full description with the technical table, all images.'' Goes to the mapping agent.'
+  - name: max_records
+    value_type: integer
+    required: false
+    display_name: Maximum records
+    description: 'Stop after this many records. Use 10 for a first trial run. Empty: no limit.'
+  - name: target_page_selector
+    value_type: text
+    required: false
+    display_name: Product page selector (CSS)
+    description: 'A CSS selector found only on the pages you want as records (product pages): a class, id or attribute, e.g. .product-detail, #product or [itemtype$=''Product'']. Other pages are still loaded for their links but never extracted (pages you list in url_list mode always are), and the AI is told to use it in the mapping. Empty: no selector; the pages are told apart by URL and structured data.'
+  - name: url_include
+    value_type: array
+    required: false
+    display_name: Only these URLs (regex)
+    description: 'Only URLs matching one of these regular expressions are loaded, e.g. ["/product/"]. Empty: every URL of the site.'
+  - name: url_exclude
+    value_type: array
+    required: false
+    display_name: Never these URLs (regex)
+    description: 'URLs matching one of these regular expressions are never loaded, e.g. ["/blog/", "/about", "\\?(sort|page)="]. Empty: none excluded.'
+  - name: discovery_mode
+    value_type: text
+    required: false
+    display_name: Discovery
+    description: 'How pages are found. auto lets the analysis decide; sitemap when the sitemap is trusted; crawl follows links when it is outdated; url_list scrapes exactly the given URLs. Empty: auto.'
+  - name: debug
+    value_type: boolean
+    required: false
+    display_name: Debug mode
+    description: 'On: the service keeps a screenshot of each protection check and a verbose job log for this run. Leave it off for normal runs. Empty: off.'
+  - name: crawl_include
+    value_type: array
+    required: false
+    display_name: 'Where to walk (regex)'
+    description: 'Links are followed only on pages whose URL matches one of these regular expressions, e.g. ["/lighting/"] to stay in a category; the start page always. Product pages linked from there are still fetched. Empty: the whole site.'
+  - name: stay_in_section
+    value_type: boolean
+    required: false
+    display_name: 'Stay inside the start page''s section'
+    description: 'On: walk only the start page''s URL and everything below its path (its pagination included); added to Where to walk. No effect on a site''s home page. Empty: off.'
+  - name: ai_choose_fields
+    value_type: boolean
+    required: false
+    display_name: 'Let the AI choose the fields'
+    description: 'On: the AI adds the fields the sample pages really carry (beyond Fields), guided by Fields hint; a specification table becomes one field. Empty: off - only the listed fields.'
+  - name: fields_hint
+    value_type: text
+    required: false
+    display_name: 'Fields hint'
+    description: 'For Let the AI choose the fields: what kind of product and which data, e.g. ''wine: vintage, type, bottle size, taste''. Empty: no hint.'
+  - name: fields
+    value_type: array
+    required: false
+    display_name: Fields
+    description: 'Field names as a JSON list, e.g. ["title", "price", "currency"]. Empty: title, description, price, currency, part_number, condition.'
+  - name: required_fields
+    value_type: array
+    required: false
+    display_name: Required fields
+    description: 'Fields a record must have, e.g. ["title", "price"]. Empty: title.'
+  - name: urls
+    value_type: array
+    required: false
+    display_name: URLs (url_list)
+    description: 'In url_list mode: the pages to scrape, as a JSON list.'
+  - name: urls_file
+    value_type: artifact_handle
+    required: false
+    display_name: URL file (url_list)
+    description: 'In url_list mode: a CSV with a ''url'' column and an optional ''key'' column (your article number, copied into each record as source_key), or one URL per line.'
+  - name: sitemap_url
+    value_type: text
+    required: false
+    display_name: Sitemap URL
+    description: 'The sitemap address when it is not in robots.txt or at /sitemap.xml. Empty: found automatically.'
+  - name: max_pages
+    value_type: integer
+    required: false
+    display_name: Maximum pages
+    description: 'Pages to load at most, listing pages included. Empty: the profile''s default, normally 10000.'
+  - name: single_page
+    value_type: boolean
+    required: false
+    display_name: Only the start page
+    description: 'On: scrape only the Site URL, find no other pages. Empty: off.'
+  - name: fetch_mode
+    value_type: text
+    required: false
+    display_name: Fetch mode
+    description: 'http loads pages without a browser (fast); browser renders them; auto chooses per page. Empty: the profile''s default, normally auto.'
+  - name: browser
+    value_type: text
+    required: false
+    display_name: Browser
+    description: 'Browser for pages that need one. Empty: the profile''s default, normally Camoufox.'
+  - name: browser_os
+    value_type: text
+    required: false
+    display_name: Browser OS
+    description: 'Which OS the browser claims. host (the default) is the scraper machine''s own OS (Linux in the service image), which protection checks such as Cloudflare usually accept; windows or macos on a Linux service is usually refused by them. linux is the same as host there. Camoufox only. Empty: host.'
+  - name: canvas_noise
+    value_type: text
+    required: false
+    display_name: Canvas noise
+    description: 'Whether the browser covers canvas and WebGL readback with random data: auto (the default) only when Browser OS claims another OS than the machine''s own, off never, on always. With the default Browser OS (host) the canvas reads back exactly. Camoufox only. Empty: auto.'
+  - name: use_proxy_tiers
+    value_type: array
+    required: false
+    display_name: Proxy tiers
+    description: 'Which proxy tiers of the profile to use, e.g. [1, 2]. Empty: every tier the profile has.'
+  - name: challenge_click
+    value_type: boolean
+    required: false
+    display_name: Allow the checkbox click
+    description: 'On: the scraper may click a protection checkbox (only if the service allows it; needs a sticky proxy). Empty: the profile''s default, normally off.'
+  - name: use_solver
+    value_type: boolean
+    required: false
+    display_name: Allow the challenge solver
+    description: 'On: the scraper may use the profile''s paid challenge solver (only if the service allows it). Empty: the profile''s default, normally off.'
+  - name: politeness
+    value_type: text
+    required: false
+    display_name: Politeness
+    description: 'How gently the crawl treats the site: gentle (pause 5-10 s, 1 page at a time, 10 requests a minute, page timeout 120 s), normal (2-5 s, 2 at a time, 30/min, 60 s) or fast (0.5-1.5 s, 4 at a time, 120/min, 30 s). Shortest/Longest pause, Pages at once, Requests per minute and Page timeout override it when set here or in the profile''s defaults; robots.txt Crawl-delay is always respected. Empty: normal.'
+  - name: delay_min_seconds
+    value_type: number
+    required: false
+    display_name: Shortest pause (s)
+    description: 'Shortest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 2).'
+  - name: delay_max_seconds
+    value_type: number
+    required: false
+    display_name: Longest pause (s)
+    description: 'Longest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 5).'
+  - name: max_concurrency
+    value_type: integer
+    required: false
+    display_name: Pages at once
+    description: 'Pages loaded at the same time; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 2).'
+  - name: max_requests_per_minute
+    value_type: integer
+    required: false
+    display_name: Requests per minute
+    description: 'Requests per minute at most; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 30).'
+  - name: page_timeout_seconds
+    value_type: integer
+    required: false
+    display_name: Page timeout (s)
+    description: 'How long one page may take to load, in seconds (10-300), for the crawl, the analysis and the samples; a slower page is retried, then counted as not loaded. Empty: from Politeness (normal: 60).'
+  - name: extraction_mode
+    value_type: text
+    required: false
+    display_name: Extraction mode
+    description: 'Where values may come from: structured_data uses only JSON-LD, selectors only CSS and meta tags, auto both. Empty: auto.'
+  - name: structured_data_types
+    value_type: array
+    required: false
+    display_name: Structured data types
+    description: 'schema.org types that mark a product page, e.g. ["Product"]. Empty: Product, Offer and AggregateOffer.'
+  - name: wait_after_load_ms
+    value_type: integer
+    required: false
+    display_name: Extra wait after load (ms)
+    description: 'Extra wait after a browser page has loaded, in milliseconds. Empty: the profile''s default, normally 0.'
+  - name: wait_for_selector_ms
+    value_type: integer
+    required: false
+    display_name: Wait for the selector (ms)
+    description: 'How long a browser page waits for the product page selector, in milliseconds. Empty: the profile''s default, normally 10000.'
+  - name: headers
+    value_type: object
+    required: false
+    display_name: Extra HTTP headers
+    description: 'Extra request headers, e.g. {"Accept-Language": "de-DE"}. No credentials or cookies. Empty: none.'
+  - name: respect_robots
+    value_type: boolean
+    required: false
+    display_name: Respect robots.txt
+    description: 'Off: ignore robots.txt (only if the service allows it). Empty: the profile''s default, normally on.'
+  - name: rebuild_mapping
+    value_type: boolean
+    required: false
+    display_name: Build a new mapping
+    description: 'On: the AI builds a new mapping even when the stored one still passes. Empty: off.'
+  - name: link_rules_off
+    value_type: array
+    required: false
+    display_name: Links not to skip
+    description: "Rules of links the crawl skips that you switch off for this run, by name: scheme, messenger_social, sensitive_path, action_params, file_extension, nofollow, facet_params, trap_budget, dynamic_params, canonical. Example: [\"facet_params\"] when a shop's products are reached only through its filters. Guide: Links the scraper skips. Empty: every rule on."
+  - name: trap_pattern_budget
+    value_type: integer
+    required: false
+    display_name: Trap budget (pages)
+    description: "A URL pattern stops being followed after this many pages in a row without a product page (crawler traps such as calendars and endless filters). 0: off. Empty: 100."
+  - name: when_site_busy
+    value_type: text
+    required: false
+    display_name: When the site is busy
+    description: 'What happens when a run of the same site is still going on: skip (this start is skipped and the job ends ''Skipped'', not failed; good for schedules) or queue (the run waits and starts when the other one ends). Empty: skip.'
+  - name: site_settings
+    value_type: object
+    required: false
+    display_name: Site settings (old copies)
+    description: The state of the 'Site settings' step of a project copy imported before 0.1.9. The run inputs win over it; the 0.1.9 template has no such step.
+  outputs:
+  - name: valid
+    value_type: boolean
+    display_name: Valid
+    description: Always true on success; refused settings fail the step with the fields named.
+  - name: config
+    value_type: object
+    display_name: Merged configuration
+    description: Every setting with its final value; pass it to the next steps.
+  - name: warnings
+    value_type: array
+    display_name: Warnings
+    description: Values the service changed (for example a switched-off solver), with the reason.
+  - name: warning_text
+    value_type: text
+    display_name: Warnings (text)
+    description: The warnings as one readable line.
+  - name: sources
+    value_type: object
+    display_name: Sources
+    description: Which layer supplied each value.
+  - name: site
+    value_type: text
+    display_name: Site
+    description: The site key used for mappings.
+  - name: discovery_mode
+    value_type: text
+    display_name: Discovery mode
+    description: The requested discovery mode.
+  - name: is_url_list
+    value_type: boolean
+    display_name: URL list mode
+    description: True in url_list mode.
+  - name: url_count
+    value_type: integer
+    display_name: URL count
+    description: Entries in the URL list.
+  - name: rebuild_mapping
+    value_type: boolean
+    display_name: Rebuild mapping
+    description: True when the run asks for a new mapping.
+  - name: required_fill_threshold
+    value_type: number
+    display_name: Fill threshold
+    description: Share of samples a required field must fill.
+  - name: max_refinements
+    value_type: integer
+    display_name: Refinements
+    description: Refinements of the mapping after the first generation.
+  - name: extraction_instructions
+    value_type: text
+    display_name: What to extract
+    description: The instructions, for the mapping agent.
+  - name: fields
+    value_type: array
+    display_name: Fields
+    description: Final field list.
+  - name: required_fields
+    value_type: array
+    display_name: Required fields
+    description: Final required fields.
+  - name: extraction_mode
+    value_type: text
+    display_name: Extraction mode
+    description: auto, structured_data or selectors.
+  - name: target_page_selector
+    value_type: text
+    display_name: Product page selector
+    description: The merged target_page_selector, for the mapping agent and the mapping test; empty when none is set.
+  - name: ai_choose_fields
+    value_type: boolean
+    display_name: Let the AI choose the fields
+    description: True when the run lets the AI add the fields the samples carry.
+  - name: fields_hint
+    value_type: text
+    display_name: Fields hint
+    description: The run's hint for the AI-chosen fields; empty when none.
+  result_fields:
+  - result.valid
+  - result.config
+  - result.warnings
+  - result.warning_text
+  - result.sources
+  - result.site
+  - result.discovery_mode
+  - result.is_url_list
+  - result.url_count
+  - result.rebuild_mapping
+  - result.required_fill_threshold
+  - result.max_refinements
+  - result.extraction_instructions
+  - result.fields
+  - result.required_fields
+  - result.extraction_mode
+  - result.target_page_selector
+  - result.ai_choose_fields
+  - result.fields_hint
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+  - urls_file_invalid
+  - url_list_too_long
+- operation_id: analyze_site
+  display_name: Analyze site
+  description: Look at robots.txt, the sitemap, JavaScript need and protection of the site, and recommend
+    a discovery strategy. Takes up to two minutes.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: config
+    value_type: object
+    required: true
+    display_name: Merged configuration
+    description: The 'config' output of 'Validate settings' (all settings merged and checked).
+  outputs:
+  - name: analysis
+    value_type: object
+    display_name: Analysis
+    description: The service's full analysis.
+  - name: recommended_discovery_mode
+    value_type: text
+    display_name: Recommended discovery
+    description: sitemap, crawl or sitemap_and_crawl.
+  - name: discovery_mode
+    value_type: text
+    display_name: Chosen discovery
+    description: The requested mode, or the recommendation when the request was auto.
+  - name: sitemap_found
+    value_type: boolean
+    display_name: Sitemap found
+    description: True when a sitemap was found.
+  - name: sitemap_url_count
+    value_type: integer
+    display_name: Sitemap URLs
+    description: URLs counted in the sitemap.
+  - name: js_required
+    value_type: boolean
+    display_name: JavaScript needed
+    description: True when pages need a browser.
+  - name: protection
+    value_type: text
+    display_name: Protection
+    description: none, challenge, hard_block or rate_limited.
+  - name: needs_proxy
+    value_type: boolean
+    display_name: Needs a proxy
+    description: True when the site blocks direct access.
+  - name: reasons
+    value_type: text
+    display_name: Reasons
+    description: Why this strategy is recommended.
+  - name: warnings
+    value_type: array
+    display_name: Warnings
+    description: Analysis warnings.
+  - name: protection_summary
+    value_type: text
+    display_name: Protection (plain words)
+    description: One paragraph per URL that met a challenge - the steps tried and their outcome, proxy
+      tier, exit country, browser and screenshot id. Empty when nothing was challenged.
+  - name: protection_not_passed
+    value_type: boolean
+    display_name: Protection not passed
+    description: True when a challenge was not passed.
+  - name: link_rules
+    value_type: text
+    display_name: Links the crawl skips
+    description: The link rules the run applies (account, cart, filters, files ...), those switched off and the trap budget, in plain words.
+  result_fields:
+  - result.analysis
+  - result.recommended_discovery_mode
+  - result.discovery_mode
+  - result.sitemap_found
+  - result.sitemap_url_count
+  - result.js_required
+  - result.protection
+  - result.needs_proxy
+  - result.reasons
+  - result.warnings
+  - result.protection_summary
+  - result.protection_not_passed
+  - result.link_rules
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+- operation_id: fetch_samples
+  display_name: Fetch samples
+  description: Fetch a few target pages and return distilled HTML, JSON-LD and meta data for building
+    and testing a mapping.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: config
+    value_type: object
+    required: true
+    display_name: Merged configuration
+    description: The 'config' output of 'Validate settings' (all settings merged and checked).
+  - name: urls
+    value_type: array
+    required: false
+    display_name: Sample URLs
+    description: Fetch exactly these pages instead of discovering target pages (at most 50).
+  - name: template_id
+    value_type: text
+    required: false
+    display_name: Template
+    description: Only pages matched by this template's active mapping.
+  - name: analysis_protection_summary
+    value_type: text
+    required: false
+    display_name: Protection seen by the analysis
+    description: The 'protection_summary' output of 'Analyze site'. When the samples run out of time,
+      the error names the protection as the likely cause and repeats it.
+  - name: analysis_protection_not_passed
+    value_type: boolean
+    required: false
+    display_name: Analysis did not pass the protection
+    description: The 'protection_not_passed' output of 'Analyze site'.
+  outputs:
+  - name: site
+    value_type: text
+    display_name: Site
+    description: Site key.
+  - name: sample_ids
+    value_type: array
+    display_name: Sample ids
+    description: Ids to test mappings on (valid for 24 hours).
+  - name: samples
+    value_type: array
+    display_name: Samples
+    description: Distilled HTML, JSON-LD and meta of each page, for the mapping agent.
+  - name: sample_count
+    value_type: integer
+    display_name: Sample count
+    description: Number of samples.
+  - name: jsonld_types
+    value_type: array
+    display_name: JSON-LD types
+    description: schema.org types found on the samples.
+  - name: warnings
+    value_type: array
+    display_name: Warnings
+    description: For example fewer target pages than requested.
+  - name: warning_text
+    value_type: text
+    display_name: Warnings (text)
+    description: The warnings as one line.
+  - name: protection_summary
+    value_type: text
+    display_name: Protection (plain words)
+    description: One paragraph per sample URL that met a challenge - the steps tried and their outcome,
+      proxy tier, exit country, browser and screenshot id. Empty when nothing was challenged.
+  - name: variant_sample_ids
+    value_type: array
+    display_name: Samples with variants
+    description: Sample ids whose pages carry variant data (one record per variant needs a variants block).
+  - name: variant_summary
+    value_type: text
+    display_name: Variants
+    description: Which samples carry variants, from which source, with how many variants and which options; empty when none.
+  result_fields:
+  - result.site
+  - result.sample_ids
+  - result.samples
+  - result.sample_count
+  - result.jsonld_types
+  - result.warnings
+  - result.warning_text
+  - result.protection_summary
+  - result.variant_sample_ids
+  - result.variant_summary
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+  - no_samples
+  - protection_not_passed
+- operation_id: test_mapping
+  display_name: Test mapping
+  description: Apply candidate mappings to the samples and report, per field, how many samples it filled
+    and with which values.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: site
+    value_type: text
+    required: true
+    display_name: Site
+    description: Site key of the target site (host without www.), from 'Validate settings'.
+  - name: mappings
+    value_type: array
+    required: false
+    display_name: Mappings
+    description: One mapping per page template (mapping.schema.json).
+  - name: mappings_json
+    value_type: text
+    required: false
+    display_name: Mappings as JSON text
+    description: The same list as JSON text, as the mapping agent returns it; used instead of mappings
+      when given.
+  - name: sample_ids
+    value_type: array
+    required: true
+    display_name: Sample ids
+    description: From 'Fetch samples' or a mapping request.
+  - name: required_fill_threshold
+    value_type: number
+    required: false
+    display_name: Fill threshold
+    description: Share of samples each required field must fill (default 0.9).
+  - name: required_fields
+    value_type: array
+    required: false
+    display_name: Required fields
+    description: Required in addition to the fields marked required in the mapping.
+  - name: extraction_mode
+    value_type: text
+    required: false
+    display_name: Extraction mode
+    description: auto, structured_data or selectors.
+  - name: require_all_samples_matched
+    value_type: boolean
+    required: false
+    display_name: Every sample must match
+    description: Default true.
+  - name: attempt
+    value_type: integer
+    required: false
+    display_name: Attempts so far
+    description: Used by the build loop; leave empty elsewhere.
+  - name: max_refinements
+    value_type: integer
+    required: false
+    display_name: Refinements allowed
+    description: Default 2.
+  - name: target_page_selector
+    value_type: text
+    required: false
+    display_name: Product page selector
+    description: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: variant_sample_ids
+    value_type: array
+    required: false
+    display_name: Samples with variants
+    description: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+  outputs:
+  - name: passed
+    value_type: boolean
+    display_name: Passed
+    description: True when every matched template filled its required fields.
+  - name: mappings
+    value_type: array
+    display_name: Mappings
+    description: The tested mappings.
+  - name: templates
+    value_type: array
+    display_name: Templates
+    description: 'Per template: matched samples and pass flag.'
+  - name: field_results
+    value_type: array
+    display_name: Field results
+    description: 'Per field: fill rate, pass flag, example values.'
+  - name: failures
+    value_type: array
+    display_name: Failures
+    description: What failed, phrased for a refinement.
+  - name: unmatched_sample_ids
+    value_type: array
+    display_name: Unmatched samples
+    description: Samples no template matched.
+  - name: sample_results
+    value_type: array
+    display_name: Sample results
+    description: 'Per sample: template and missing required fields.'
+  - name: required_fill_threshold
+    value_type: number
+    display_name: Fill threshold
+    description: The threshold used.
+  - name: attempt
+    value_type: integer
+    display_name: Attempt
+    description: Attempts including this one.
+  - name: attempts
+    value_type: integer
+    display_name: Attempts
+    description: Same as attempt.
+  - name: max_refinements
+    value_type: integer
+    display_name: Refinements allowed
+    description: Refinements after the first generation.
+  - name: can_refine
+    value_type: boolean
+    display_name: Can refine
+    description: True while another refinement is allowed.
+  - name: sample_ids
+    value_type: array
+    display_name: Sample ids
+    description: The samples used.
+  - name: summary
+    value_type: text
+    display_name: Summary
+    description: One line per field.
+  - name: warnings
+    value_type: array
+    display_name: Warnings
+    description: Templates whose match.selector does not include the product page selector. They do
+      not fail the test; the service skips pages without the selector anyway.
+  result_fields:
+  - result.passed
+  - result.mappings
+  - result.templates
+  - result.field_results
+  - result.failures
+  - result.unmatched_sample_ids
+  - result.sample_results
+  - result.required_fill_threshold
+  - result.attempt
+  - result.attempts
+  - result.max_refinements
+  - result.can_refine
+  - result.sample_ids
+  - result.summary
+  - result.warnings
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - sample_not_found
+  - mapping_invalid
+- operation_id: get_mappings
+  display_name: Get mappings
+  description: Read the active mapping of every template of a site and the versions an activation must
+    name.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: site
+    value_type: text
+    required: true
+    display_name: Site
+    description: Site key of the target site (host without www.), from 'Validate settings'.
+  - name: template_id
+    value_type: text
+    required: false
+    display_name: Template
+    description: Only this template.
+  outputs:
+  - name: site
+    value_type: text
+    display_name: Site
+    description: Site key.
+  - name: templates
+    value_type: array
+    display_name: Templates
+    description: Template ids with their active version.
+  - name: mappings
+    value_type: array
+    display_name: Mappings
+    description: Active mapping of each template.
+  - name: expected_versions
+    value_type: object
+    display_name: Expected versions
+    description: template_id -> active version, for activation.
+  - name: has_active_mapping
+    value_type: boolean
+    display_name: Has a mapping
+    description: True when the site has at least one active mapping.
+  - name: template_count
+    value_type: integer
+    display_name: Templates
+    description: Number of active templates.
+  result_fields:
+  - result.site
+  - result.templates
+  - result.mappings
+  - result.expected_versions
+  - result.has_active_mapping
+  - result.template_count
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+- operation_id: activate_mapping
+  display_name: Activate mapping
+  description: Activate tested mappings, each only if its template is still at the version it was built
+    on. A conflict changes nothing.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: site
+    value_type: text
+    required: true
+    display_name: Site
+    description: Site key of the target site (host without www.), from 'Validate settings'.
+  - name: mappings
+    value_type: array
+    required: true
+    display_name: Mappings
+    description: The tested mappings.
+  - name: expected_versions
+    value_type: object
+    required: false
+    display_name: Expected versions
+    description: 'template_id -> version the mapping was built on (from ''Get mappings'' or the mapping
+      request). Missing: 0 (new template).'
+  - name: expected_version
+    value_type: integer
+    required: false
+    display_name: Expected version
+    description: For a single mapping instead of expected_versions.
+  - name: run_id
+    value_type: text
+    required: false
+    display_name: Run id
+    description: Recorded as the origin of the version.
+  - name: mapping_request_id
+    value_type: text
+    required: false
+    display_name: Mapping request id
+    description: Recorded as the origin of the version.
+  - name: note
+    value_type: text
+    required: false
+    display_name: Note
+    description: Recorded with the version.
+  - name: fail_on_conflict
+    value_type: boolean
+    required: false
+    display_name: Fail on conflict
+    description: 'True: a version conflict fails the step (Scrape a site). False: it is reported (Scraper
+      events).'
+  outputs:
+  - name: site
+    value_type: text
+    display_name: Site
+    description: Site key.
+  - name: activated
+    value_type: array
+    display_name: Activated
+    description: Template, new version, changed flag.
+  - name: conflicts
+    value_type: array
+    display_name: Conflicts
+    description: Templates whose active version moved on.
+  - name: conflict
+    value_type: boolean
+    display_name: Conflict
+    description: True when any template had a conflict.
+  - name: all_activated
+    value_type: boolean
+    display_name: All activated
+    description: True without conflicts.
+  - name: summary
+    value_type: text
+    display_name: Summary
+    description: One readable line.
+  result_fields:
+  - result.site
+  - result.activated
+  - result.conflicts
+  - result.conflict
+  - result.all_activated
+  - result.summary
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - mapping_invalid
+  - mapping_version_conflict
+  - config_invalid
+- operation_id: export_mappings
+  display_name: Export mappings
+  description: Export the active mappings of all sites (or one) for backup.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: site
+    value_type: text
+    required: false
+    display_name: Site
+    description: Only this site.
+  outputs:
+  - name: export
+    value_type: object
+    display_name: Export
+    description: The mapping backup (format flowsteward.web-scraper.mappings.v1).
+  - name: site_count
+    value_type: integer
+    display_name: Sites
+    description: Exported sites.
+  - name: template_count
+    value_type: integer
+    display_name: Templates
+    description: Exported templates.
+  result_fields:
+  - result.export
+  - result.site_count
+  - result.template_count
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - invalid_cursor
+- operation_id: import_mappings
+  display_name: Import mappings
+  description: Restore mappings from an export; a template whose active version differs is reported as
+    a conflict and not overwritten.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: export
+    value_type: object
+    required: true
+    display_name: Export
+    description: The output of 'Export mappings'.
+  outputs:
+  - name: activated
+    value_type: integer
+    display_name: Activated
+    description: New versions.
+  - name: unchanged
+    value_type: integer
+    display_name: Unchanged
+    description: Templates already identical.
+  - name: conflicts
+    value_type: array
+    display_name: Conflicts
+    description: Templates not imported.
+  - name: summary
+    value_type: text
+    display_name: Summary
+    description: One readable line.
+  result_fields:
+  - result.activated
+  - result.unchanged
+  - result.conflicts
+  - result.summary
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+  - mapping_version_conflict
+- operation_id: start_run
+  display_name: Start run
+  description: Start the crawl on the scraper service. Repeating the same workflow step returns the same
+    run; the step ends at once and does not wait for the crawl.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: config
+    value_type: object
+    required: true
+    display_name: Merged configuration
+    description: The 'config' output of 'Validate settings' (all settings merged and checked).
+  - name: skipped_start_succeeds
+    value_type: boolean
+    required: false
+    display_name: A skipped start succeeds
+    description: 'On: when a run of this site is still going on and the start is skipped (When the site is busy: skip), this step ends successfully with skipped true and the reason instead of failing with site_busy. Empty: off.'
+  outputs:
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: The scraper run.
+  - name: state
+    value_type: text
+    display_name: State
+    description: queued or running.
+  - name: site
+    value_type: text
+    display_name: Site
+    description: Site key.
+  - name: created
+    value_type: boolean
+    display_name: Created
+    description: False when this step had already started the run.
+  - name: idempotency_key
+    value_type: text
+    display_name: Idempotency key
+    description: fs:<job>:<step>[:<loop position>].
+  - name: run_page_hint
+    value_type: text
+    display_name: Where to watch it
+    description: How to open the run on the extension's Run detail page.
+  - name: skipped
+    value_type: boolean
+    display_name: Skipped
+    description: True when the start was skipped because a run of this site is still going on (only with A skipped start succeeds).
+  - name: skipped_reason
+    value_type: text
+    display_name: Why it was skipped
+    description: 'Skipped: <site> is already being scraped (run <id>, since <time>). Empty when the run started.'
+  - name: busy_run_id
+    value_type: text
+    display_name: The run that is going on
+    description: The run of this site that made the start skip; empty when the run started.
+  result_fields:
+  - result.run_id
+  - result.state
+  - result.site
+  - result.created
+  - result.idempotency_key
+  - result.run_page_hint
+  - result.skipped
+  - result.skipped_reason
+  - result.busy_run_id
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+  - idempotency_key_reused
+  - service_busy
+  - site_busy
+  - service_secrets_key_missing
+- operation_id: stop_run
+  display_name: Stop run
+  description: Stop fetching; pages in progress are finished and the result is written.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The scraper run id (run_...).
+  - name: note
+    value_type: text
+    required: false
+    display_name: Note
+    description: Why the run was stopped.
+  outputs:
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.run_id
+  - result.state
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+- operation_id: resume_run
+  display_name: Resume run
+  description: Send the profile's current secrets to the service again, for a run waiting for credentials
+    or after a secret rotation.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The scraper run id (run_...).
+  outputs:
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.run_id
+  - result.state
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+  - service_secrets_key_missing
+- operation_id: get_run_summary
+  display_name: Get run summary
+  description: Outcome, stop reason, per-template status, counters and errors of a run. No records.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The scraper run id (run_...).
+  - name: require_completed
+    value_type: boolean
+    required: false
+    display_name: Fail unless completed
+    description: 'True: the step fails with the run''s summary as its message when the run is not completed
+      (failed, or still going on). Scrape a site uses it after its Wait.'
+  outputs:
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: outcome
+    value_type: text
+    display_name: Outcome
+    description: complete or partial; empty until final.
+  - name: stop_reason
+    value_type: text
+    display_name: Stop reason
+    description: finished, max_records, max_pages, max_duration, max_result_size, stopped or blocked.
+  - name: site
+    value_type: text
+    display_name: Site
+    description: ''
+  - name: terminal
+    value_type: boolean
+    display_name: Final
+    description: True for completed or failed.
+  - name: templates
+    value_type: array
+    display_name: Templates
+    description: Status, mapping version, records, unextracted pages.
+  - name: counters
+    value_type: object
+    display_name: Counters
+    description: Pages, records, fill rate, repairs.
+  - name: errors
+    value_type: array
+    display_name: Errors
+    description: Run errors (at most 20).
+  - name: error
+    value_type: object
+    display_name: Failure
+    description: Why a failed run failed.
+  - name: platform_job_id
+    value_type: text
+    display_name: Starting job
+    description: The platform job that started the run.
+  - name: finished_at
+    value_type: text
+    display_name: Finished at
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  - name: record_count
+    value_type: integer
+    display_name: Records
+    description: Records of the run (the result file's count, else the extraction counter).
+  - name: has_records
+    value_type: boolean
+    display_name: Has records
+    description: False when the run produced no records; then there is no result file to get.
+  - name: no_records_message
+    value_type: text
+    display_name: No records
+    description: For a completed run without records, why (stop reason in plain words); empty otherwise.
+  - name: explanation
+    value_type: text
+    display_name: Why it stopped
+    description: The service's sentence on why the run stopped (or how it is going), with what to do.
+  - name: completeness
+    value_type: text
+    display_name: Completeness
+    description: Pages collected of the target pages found (progress while running), with a warning when records fell against the previous full run.
+  - name: comparison_warning
+    value_type: text
+    display_name: Fewer records than last time
+    description: The warning when records fell against the previous full run of the site; empty otherwise.
+  - name: timeline
+    value_type: text
+    display_name: Timeline
+    description: The run's last notable moments (start, discovery, first block, tier change, stop).
+  - name: result_by_starter
+    value_type: boolean
+    display_name: Files stored by the starting job
+    description: True when Scrape a site 0.1.23 or later started the run (step start_crawl); that job waits
+      for the run and stores its files, so Scraper events does not.
+  - name: politeness
+    value_type: object
+    display_name: Politeness
+    description: The run's effective politeness (preset, text such as 'normal 2-5 s, 2 at a time, 30/min, page timeout 60 s') and the hosts the service slowed down; empty with a service before 2026-11-15.
+  result_fields:
+  - result.run_id
+  - result.state
+  - result.outcome
+  - result.stop_reason
+  - result.site
+  - result.terminal
+  - result.templates
+  - result.counters
+  - result.errors
+  - result.error
+  - result.platform_job_id
+  - result.finished_at
+  - result.message
+  - result.record_count
+  - result.has_records
+  - result.no_records_message
+  - result.explanation
+  - result.completeness
+  - result.comparison_warning
+  - result.timeline
+  - result.result_by_starter
+  - result.politeness
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+  - run_not_completed
+- operation_id: claim_event
+  display_name: Claim event
+  description: Reserve a scraper event for this run and read its recorded progress. Another run's claim
+    or a handled event is reported, not an error. A claimed run_completed or run_failed also wakes the
+    Scrape a site run that waits for that scraper run (resume_waits, key = the run id).
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: event_id
+    value_type: text
+    required: true
+    display_name: Event id
+    description: The event id from the webhook input event_id.
+  outputs:
+  - name: claimed
+    value_type: boolean
+    display_name: Claimed
+    description: 'False: another run has it or it is handled; stop.'
+  - name: status
+    value_type: text
+    display_name: Status
+    description: claimed, already_claimed, already_handled or stale.
+  - name: event_id
+    value_type: text
+    display_name: Event id
+    description: ''
+  - name: claim_id
+    value_type: text
+    display_name: Claim id
+    description: Pass to every later event step.
+  - name: event_type
+    value_type: text
+    display_name: Event type
+    description: ''
+  - name: route
+    value_type: text
+    display_name: Route
+    description: The event type, or problem for an unknown type.
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: resource_id
+    value_type: text
+    display_name: Resource id
+    description: Run id or mapping request id.
+  - name: outcome
+    value_type: text
+    display_name: Outcome
+    description: ''
+  - name: stop_reason
+    value_type: text
+    display_name: Stop reason
+    description: ''
+  - name: problem_code
+    value_type: text
+    display_name: Problem
+    description: ''
+  - name: template_id
+    value_type: text
+    display_name: Template
+    description: ''
+  - name: event_message
+    value_type: text
+    display_name: Event message
+    description: ''
+  - name: delivery_generation
+    value_type: integer
+    display_name: Delivery
+    description: Delivery generation.
+  - name: resend_mode
+    value_type: text
+    display_name: Resend mode
+    description: resume or from_start for a resent event.
+  - name: last_stage
+    value_type: text
+    display_name: Last stage
+    description: processed or completed when recorded.
+  - name: stages
+    value_type: array
+    display_name: Stages
+    description: Recorded stages.
+  - name: processed_recorded
+    value_type: boolean
+    display_name: Processed
+    description: 'True: skip the processing steps.'
+  - name: completed_recorded
+    value_type: boolean
+    display_name: Completed
+    description: 'True: skip to Complete event.'
+  - name: expires_at
+    value_type: text
+    display_name: Claim expires
+    description: ''
+  - name: claimant_job_id
+    value_type: text
+    display_name: Holder
+    description: The platform job holding the claim, when not this one.
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.claimed
+  - result.status
+  - result.event_id
+  - result.claim_id
+  - result.event_type
+  - result.route
+  - result.run_id
+  - result.resource_id
+  - result.outcome
+  - result.stop_reason
+  - result.problem_code
+  - result.template_id
+  - result.event_message
+  - result.delivery_generation
+  - result.resend_mode
+  - result.last_stage
+  - result.stages
+  - result.processed_recorded
+  - result.completed_recorded
+  - result.expires_at
+  - result.claimant_job_id
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - event_not_found
+- operation_id: mark_event_stage
+  display_name: Mark event stage
+  description: Record that a stage of handling an event is done, so a resend resumes after it.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: event_id
+    value_type: text
+    required: true
+    display_name: Event id
+    description: The event id from the webhook input event_id.
+  - name: claim_id
+    value_type: text
+    required: true
+    display_name: Claim id
+    description: The claim_id output of 'Claim event'.
+  - name: stage
+    value_type: text
+    required: true
+    display_name: Stage
+    description: processed or completed.
+  outputs:
+  - name: event_id
+    value_type: text
+    display_name: Event id
+    description: ''
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: stage
+    value_type: text
+    display_name: Stage
+    description: ''
+  - name: last_stage
+    value_type: text
+    display_name: Last stage
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.event_id
+  - result.state
+  - result.stage
+  - result.last_stage
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - event_not_found
+  - claim_superseded
+  - stage_out_of_order
+  - event_already_handled
+- operation_id: complete_event
+  display_name: Complete event
+  description: Mark an event handled. Refused when another run took the event over.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: event_id
+    value_type: text
+    required: true
+    display_name: Event id
+    description: The event id from the webhook input event_id.
+  - name: claim_id
+    value_type: text
+    required: true
+    display_name: Claim id
+    description: The claim_id output of 'Claim event'.
+  outputs:
+  - name: event_id
+    value_type: text
+    display_name: Event id
+    description: ''
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: handled_at
+    value_type: text
+    display_name: Handled at
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.event_id
+  - result.state
+  - result.handled_at
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - event_not_found
+  - claim_superseded
+- operation_id: get_mapping_request
+  display_name: Get mapping request
+  description: Samples, reason, previous mapping with its version, and failures of a mapping request.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: mapping_request_id
+    value_type: text
+    required: true
+    display_name: Mapping request id
+    description: The resource_id of a mapping_required event.
+  outputs:
+  - name: mapping_request_id
+    value_type: text
+    display_name: Mapping request id
+    description: ''
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: site
+    value_type: text
+    display_name: Site
+    description: ''
+  - name: reason
+    value_type: text
+    display_name: Reason
+    description: incomplete or no_template.
+  - name: status
+    value_type: text
+    display_name: Status
+    description: open, resolved, failed, expired or cancelled.
+  - name: is_open
+    value_type: boolean
+    display_name: Open
+    description: 'False: nothing to do.'
+  - name: template_id
+    value_type: text
+    display_name: Template
+    description: Empty for a new template.
+  - name: suggested_template_id
+    value_type: text
+    display_name: Suggested template
+    description: ''
+  - name: expected_version
+    value_type: integer
+    display_name: Expected version
+    description: Send unchanged when activating.
+  - name: expected_versions
+    value_type: object
+    display_name: Expected versions
+    description: template_id -> expected version.
+  - name: previous_mapping
+    value_type: object
+    display_name: Previous mapping
+    description: The active mapping, if any.
+  - name: previous_mappings
+    value_type: array
+    display_name: Previous mappings
+    description: The same as a list.
+  - name: previous_version
+    value_type: integer
+    display_name: Previous version
+    description: ''
+  - name: failures
+    value_type: object
+    display_name: Failures
+    description: Fill rates in the window.
+  - name: sample_ids
+    value_type: array
+    display_name: Sample ids
+    description: ''
+  - name: samples
+    value_type: array
+    display_name: Samples
+    description: For the mapping agent.
+  - name: extraction_instructions
+    value_type: text
+    display_name: What to extract
+    description: ''
+  - name: fields
+    value_type: array
+    display_name: Fields
+    description: ''
+  - name: required_fields
+    value_type: array
+    display_name: Required fields
+    description: ''
+  - name: required_fill_threshold
+    value_type: number
+    display_name: Fill threshold
+    description: ''
+  - name: extraction_mode
+    value_type: text
+    display_name: Extraction mode
+    description: ''
+  - name: max_refinements
+    value_type: integer
+    display_name: Refinements
+    description: ''
+  - name: instructions
+    value_type: object
+    display_name: Instructions
+    description: The job's extraction settings.
+  - name: target_page_selector
+    value_type: text
+    display_name: Product page selector
+    description: The job's target_page_selector, for the mapping agent and the test; empty when none.
+  - name: variant_sample_ids
+    value_type: array
+    display_name: Samples with variants
+    description: Sample ids of the request whose pages carry variant data.
+  - name: ai_choose_fields
+    value_type: boolean
+    display_name: Let the AI choose the fields
+    description: True when the run lets the AI add the fields the samples carry.
+  - name: fields_hint
+    value_type: text
+    display_name: Fields hint
+    description: The run's hint for the AI-chosen fields; empty when none.
+  result_fields:
+  - result.mapping_request_id
+  - result.run_id
+  - result.site
+  - result.reason
+  - result.status
+  - result.is_open
+  - result.template_id
+  - result.suggested_template_id
+  - result.expected_version
+  - result.expected_versions
+  - result.previous_mapping
+  - result.previous_mappings
+  - result.previous_version
+  - result.failures
+  - result.sample_ids
+  - result.samples
+  - result.extraction_instructions
+  - result.fields
+  - result.required_fields
+  - result.required_fill_threshold
+  - result.extraction_mode
+  - result.max_refinements
+  - result.instructions
+  - result.target_page_selector
+  - result.variant_sample_ids
+  - result.ai_choose_fields
+  - result.fields_hint
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - mapping_request_not_found
+- operation_id: fail_mapping_request
+  display_name: Report mapping failure
+  description: Tell the service no passing mapping was built; the template is given up for this run and
+    the run goes on.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: mapping_request_id
+    value_type: text
+    required: true
+    display_name: Mapping request id
+    description: ''
+  - name: failure_reason
+    value_type: text
+    required: false
+    display_name: Reason
+    description: Why no mapping passed.
+  - name: attempts
+    value_type: integer
+    required: false
+    display_name: Attempts
+    description: Generations tried.
+  outputs:
+  - name: mapping_request_id
+    value_type: text
+    display_name: Mapping request id
+    description: ''
+  - name: status
+    value_type: text
+    display_name: Status
+    description: ''
+  - name: already_closed
+    value_type: boolean
+    display_name: Already closed
+    description: ''
+  - name: message
+    value_type: text
+    display_name: Message
+    description: ''
+  result_fields:
+  - result.mapping_request_id
+  - result.status
+  - result.already_closed
+  - result.message
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - mapping_request_not_found
+- operation_id: get_result
+  display_name: Get result
+  description: Store the run's result file (JSON Lines) as a platform artifact after checking its size,
+    checksum and record count; returns the result descriptor, never the records.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The scraper run id (run_...).
+  outputs:
+  - name: artifact_handle
+    value_type: artifact_handle
+    display_name: Result file
+    description: The .jsonl artifact; tabular_feed reads it as NDJSON.
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: format
+    value_type: text
+    display_name: Format
+    description: jsonl
+  - name: file_name
+    value_type: text
+    display_name: Result file name
+    description: The run id with the file type (run_....jsonl); the service's own name <site>_<run id>.jsonl
+      reads as a token to the platform's secret scanner.
+  - name: size_bytes
+    value_type: integer
+    display_name: Size
+    description: Bytes.
+  - name: record_count
+    value_type: integer
+    display_name: Records
+    description: ''
+  - name: sha256
+    value_type: text
+    display_name: SHA-256
+    description: ''
+  - name: templates
+    value_type: array
+    display_name: Templates
+    description: Records per template.
+  - name: outcome
+    value_type: text
+    display_name: Outcome
+    description: ''
+  - name: stop_reason
+    value_type: text
+    display_name: Stop reason
+    description: ''
+  - name: created_at
+    value_type: text
+    display_name: Written at
+    description: ''
+  - name: has_csv
+    value_type: boolean
+    display_name: CSV available
+    description: True when the service also wrote the records as CSV; then 'Get result CSV' can store it.
+  result_fields:
+  - result.artifact_handle
+  - result.run_id
+  - result.format
+  - result.file_name
+  - result.size_bytes
+  - result.record_count
+  - result.sha256
+  - result.templates
+  - result.outcome
+  - result.stop_reason
+  - result.created_at
+  - result.has_csv
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+  - result_not_ready
+  - result_not_available
+  - result_expired
+  - result_too_large
+  - result_empty
+  - result_checksum_mismatch
+  - result_size_mismatch
+  - result_record_count_mismatch
+  - artifact_write_failed
+  - service_download_failed
+- operation_id: build_mapping
+  display_name: Build mapping
+  description: 'AI: write a declarative extraction mapping from the samples, test it, and refine it at
+    most twice with the per-field failures. Returns the mapping and passed: false when it never passed.'
+  operation_kind: action
+  category: web_scraping
+  inputs:
+  - name: site
+    value_type: text
+    required: true
+    display_name: Site
+    description: Site key of the target site (host without www.), from 'Validate settings'.
+  - name: sample_ids
+    value_type: array
+    required: true
+    display_name: Sample ids
+    description: From 'Fetch samples' or the mapping request.
+  - name: samples
+    value_type: array
+    required: true
+    display_name: Samples
+    description: Distilled pages from 'Fetch samples' or the mapping request.
+  - name: extraction_instructions
+    value_type: text
+    required: false
+    display_name: What to extract
+    description: The user's instructions.
+  - name: fields
+    value_type: array
+    required: false
+    display_name: Fields
+    description: Fields to extract.
+  - name: required_fields
+    value_type: array
+    required: false
+    display_name: Required fields
+    description: Fields a record must have.
+  - name: required_fill_threshold
+    value_type: number
+    required: false
+    display_name: Fill threshold
+    description: Default 0.9.
+  - name: extraction_mode
+    value_type: text
+    required: false
+    display_name: Extraction mode
+    description: auto, structured_data or selectors.
+  - name: max_refinements
+    value_type: integer
+    required: false
+    display_name: Refinements
+    description: Refinements after the first generation (default 2).
+  - name: previous_mappings
+    value_type: array
+    required: false
+    display_name: Previous mappings
+    description: 'For a repair: the active mapping that broke.'
+  - name: previous_failures
+    value_type: object
+    required: false
+    display_name: Previous failures
+    description: 'For a repair: fill rates reported by the service.'
+  - name: suggested_template_id
+    value_type: text
+    required: false
+    display_name: Suggested template id
+    description: For a new template.
+  - name: target_page_selector
+    value_type: text
+    required: false
+    display_name: Product page selector
+    description: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: variant_sample_ids
+    value_type: array
+    required: false
+    display_name: Samples with variants
+    description: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+  - name: ai_choose_fields
+    value_type: boolean
+    required: false
+    display_name: Let the AI choose the fields
+    description: "On: the agent adds the fields the samples really carry, beyond Fields."
+  - name: fields_hint
+    value_type: text
+    required: false
+    display_name: Fields hint
+    description: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+  outputs:
+  - name: mappings
+    value_type: array
+    display_name: Mappings
+    description: The last candidate, one mapping per template.
+  - name: passed
+    value_type: boolean
+    display_name: Passed
+    description: False when no candidate passed after the refinements.
+  - name: field_results
+    value_type: array
+    display_name: Field results
+    description: 'Per field: fill rate, pass flag, examples.'
+  - name: failures
+    value_type: array
+    display_name: Failures
+    description: What still fails.
+  - name: attempts
+    value_type: integer
+    display_name: Attempts
+    description: Generations tried.
+  - name: summary
+    value_type: text
+    display_name: Summary
+    description: One line per field.
+  result_fields:
+  - result.mappings
+  - result.passed
+  - result.field_results
+  - result.failures
+  - result.attempts
+  - result.summary
+- operation_id: write_samples_file
+  display_name: Write samples file
+  description: Store the sample pages (URL, title, template hint, JSON-LD, meta, distilled HTML) as one
+    Markdown file that the mapping agent reads whole. Used inside build_mapping; calls no service.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: site
+    value_type: text
+    required: false
+    display_name: Site
+    description: Site key, shown at the top of the file.
+  - name: samples
+    value_type: array
+    required: true
+    display_name: Samples
+    description: Distilled pages from 'Fetch samples' or a mapping request.
+  - name: extraction_instructions
+    value_type: text
+    required: false
+    display_name: What to extract
+    description: The user's instructions, written in full into the file.
+  - name: fields
+    value_type: array
+    required: false
+    display_name: Fields
+    description: Field names every template must contain.
+  - name: required_fields
+    value_type: array
+    required: false
+    display_name: Required fields
+    description: Fields a record must have.
+  - name: suggested_template_id
+    value_type: text
+    required: false
+    display_name: Suggested template id
+    description: For a new template.
+  - name: previous_mappings
+    value_type: array
+    required: false
+    display_name: Previous candidate
+    description: The mapping to repair or refine.
+  - name: failures
+    value_type: array
+    required: false
+    display_name: Failures
+    description: Failures of the last test.
+  - name: service_failures
+    value_type: object
+    required: false
+    display_name: Service measurements
+    description: For a repair, what the service measured on the live crawl.
+  - name: attempt
+    value_type: integer
+    required: false
+    display_name: Attempt
+    description: Generations tried so far.
+  - name: target_page_selector
+    value_type: text
+    required: false
+    display_name: Product page selector
+    description: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: ai_choose_fields
+    value_type: boolean
+    required: false
+    display_name: Let the AI choose the fields
+    description: "On: the agent adds the fields the samples really carry, beyond Fields."
+  - name: fields_hint
+    value_type: text
+    required: false
+    display_name: Fields hint
+    description: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+  outputs:
+  - name: artifact_handle
+    value_type: artifact_handle
+    display_name: Samples file
+    description: samples.md, for the agent step's file binding.
+  - name: sample_count
+    value_type: integer
+    display_name: Samples
+    description: Samples written.
+  - name: size_chars
+    value_type: integer
+    display_name: Size
+    description: Characters in the file.
+  - name: html_chars_per_sample
+    value_type: integer
+    display_name: HTML budget per sample
+    description: The most distilled HTML characters kept per sample.
+  - name: samples
+    value_type: array
+    display_name: Per sample
+    description: sample_id, HTML characters kept and whether the page was shortened.
+  result_fields:
+  - result.artifact_handle
+  - result.sample_count
+  - result.size_chars
+  - result.html_chars_per_sample
+  - result.samples
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - no_samples
+  - artifact_write_failed
+  - internal_error
+- operation_id: service_storage
+  display_name: Service storage
+  description: What the scraper service keeps on its disk, in plain words - working files, result files,
+    samples, screenshots and the database with their sizes, runs by state, the automatic clean-up times,
+    free disk space and the last clean-ups.
+  operation_kind: source
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  outputs:
+  - name: message
+    value_type: text
+    display_name: Summary
+    description: How much the service keeps and how much of its disk is free; says so first when space is low.
+  - name: disk
+    value_type: text
+    display_name: Disk
+    description: Free and total space of the service's data volume.
+  - name: working_files
+    value_type: text
+    display_name: Working files
+    description: The pages each run loaded (kept for re-extraction), size, runs and the oldest.
+  - name: result_files
+    value_type: text
+    display_name: Result files
+    description: Size and count, and how many Flow Steward has not fetched yet.
+  - name: samples
+    value_type: text
+    display_name: Samples
+    description: Pages fetched to build and test mappings.
+  - name: screenshots
+    value_type: text
+    display_name: Screenshots
+    description: Screenshots of protection checks.
+  - name: database
+    value_type: text
+    display_name: Database
+    description: Database file and write-ahead log, and how much compacting would give back.
+  - name: runs
+    value_type: text
+    display_name: Runs
+    description: Runs by state and the oldest finished run.
+  - name: retention
+    value_type: text
+    display_name: Automatic clean-up
+    description: When the service removes each kind by itself.
+  - name: last_automatic_cleanup
+    value_type: text
+    display_name: Last automatic clean-up
+    description: When the service last cleaned up by itself and what it removed.
+  - name: last_manual_cleanup
+    value_type: text
+    display_name: Last manual clean-up
+    description: When 'Clean up service storage' last removed something, and how much.
+  - name: never_removed
+    value_type: text
+    display_name: Never removed
+    description: Browser identities and other files the service never removes.
+  - name: details
+    value_type: object
+    display_name: Details
+    description: The service's whole answer (bytes per kind, runs by_state, retention with result_days,
+      job_record_days, stored_pages_days and samples_hours, volume, last_cleanup).
+  result_fields:
+  - result.message
+  - result.disk
+  - result.working_files
+  - result.result_files
+  - result.samples
+  - result.screenshots
+  - result.database
+  - result.runs
+  - result.retention
+  - result.last_automatic_cleanup
+  - result.last_manual_cleanup
+  - result.never_removed
+  - result.details
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+- operation_id: clean_up_storage
+  display_name: Clean up service storage
+  description: Remove what the scraper service keeps for finished runs - working files, result files,
+    whole run records, samples and screenshots older than the ages you give - and compact its database.
+    A dry run (the default) removes nothing and says what would go.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: dry_run
+    value_type: boolean
+    required: false
+    display_name: Dry run
+    description: 'On: nothing is removed; the answer says what would be removed and how much space it frees. Off: remove. Empty: on.'
+  - name: working_files_older_than_days
+    value_type: integer
+    required: false
+    display_name: Working files older than (days)
+    description: 'The pages finished runs loaded, for runs that ended at least this many days ago. 0: every finished run. The run and its result stay. Empty: not touched.'
+  - name: result_files_older_than_days
+    value_type: integer
+    required: false
+    display_name: Result files older than (days)
+    description: 'Result files of runs that ended at least this many days ago. The run stays, its result is gone from the service. Empty: not touched.'
+  - name: include_unfetched_results
+    value_type: boolean
+    required: false
+    display_name: Include results Flow Steward has not fetched
+    description: 'On: also remove result files (and run records) whose result Flow Steward has not stored yet. Off or empty: those runs are kept.'
+  - name: run_records_older_than_days
+    value_type: integer
+    required: false
+    display_name: Run records older than (days)
+    description: 'Whole finished runs that ended at least this many days ago: records, events, working files and result. The run is gone from the Runs page. Empty: not touched.'
+  - name: samples_older_than_hours
+    value_type: integer
+    required: false
+    display_name: Samples and screenshots older than (hours)
+    description: 'Sample pages and protection screenshots last written at least this many hours ago. 0: all. Empty: not touched.'
+  - name: compact_database
+    value_type: boolean
+    required: false
+    display_name: Compact the database
+    description: 'On: empty the database''s write-ahead log and compact the file; the file is compacted only when no run is active. Off or empty: not compacted.'
+  outputs:
+  - name: message
+    value_type: text
+    display_name: Summary
+    description: What was (or, in a dry run, would be) removed and the space freed.
+  - name: dry_run
+    value_type: boolean
+    display_name: Dry run
+    description: True when nothing was removed.
+  - name: working_files
+    value_type: text
+    display_name: Working files
+    description: Runs and bytes removed, or not part of this clean-up.
+  - name: result_files
+    value_type: text
+    display_name: Result files
+    description: Files and bytes removed, or not part of this clean-up.
+  - name: run_records
+    value_type: text
+    display_name: Run records
+    description: Whole runs and bytes removed, or not part of this clean-up.
+  - name: samples
+    value_type: text
+    display_name: Samples
+    description: Samples and bytes removed, or not part of this clean-up.
+  - name: screenshots
+    value_type: text
+    display_name: Screenshots
+    description: Screenshots and bytes removed, or not part of this clean-up.
+  - name: database
+    value_type: text
+    display_name: Database
+    description: What compacting did or would do, and why the file was not compacted when it was skipped.
+  - name: kept
+    value_type: text
+    display_name: Kept
+    description: Runs not finished, and finished runs kept because their result was not fetched.
+  - name: freed
+    value_type: text
+    display_name: Freed
+    description: The space freed (or that would be freed), in MB or GB.
+  - name: bytes_freed
+    value_type: integer
+    display_name: Bytes freed
+    description: The same in bytes.
+  - name: details
+    value_type: object
+    display_name: Details
+    description: The request sent and the service's whole answer.
+  result_fields:
+  - result.message
+  - result.dry_run
+  - result.working_files
+  - result.result_files
+  - result.run_records
+  - result.samples
+  - result.screenshots
+  - result.database
+  - result.kept
+  - result.freed
+  - result.bytes_freed
+  - result.details
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - config_invalid
+- operation_id: get_result_csv
+  display_name: Get result CSV
+  description: Store the run's records as CSV (UTF-8 with BOM, separator ';') beside the JSON Lines
+    file, after checking size and checksum. Needs a service from 2026-11-14 or later.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The scraper run id (run_...).
+  outputs:
+  - name: artifact_handle
+    value_type: artifact_handle
+    display_name: CSV file
+    description: The .csv artifact.
+  - name: run_id
+    value_type: text
+    display_name: Run id
+    description: ''
+  - name: file_name
+    value_type: text
+    display_name: CSV file name
+    description: run_....csv
+  - name: size_bytes
+    value_type: integer
+    display_name: Size
+    description: Bytes.
+  - name: sha256
+    value_type: text
+    display_name: SHA-256
+    description: Checked against the service's.
+  - name: record_count
+    value_type: integer
+    display_name: Records
+    description: One CSV row per record, after the header row.
+  result_fields:
+  - result.artifact_handle
+  - result.run_id
+  - result.file_name
+  - result.size_bytes
+  - result.sha256
+  - result.record_count
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+  - result_not_ready
+  - result_not_available
+  - result_expired
+  - result_csv_missing
+  - result_too_large
+  - result_checksum_mismatch
+  - result_size_mismatch
+  - artifact_write_failed
+  - service_download_failed
+- operation_id: recollect_run
+  display_name: Re-collect missed pages
+  description: Start a new run over only the pages a finished run missed (its unextracted URLs with the
+    reasons chosen), with the run's settings and the site's active mappings. The new run has its own
+    result.
+  operation_kind: action
+  category: web_scraping
+  connection_type_ids:
+  - scraper_profile
+  inputs:
+  - *id001
+  - name: run_id
+    value_type: text
+    required: true
+    display_name: Run id
+    description: The finished run whose missed pages are collected again (run_...).
+  - name: reasons
+    value_type: array
+    required: false
+    display_name: Reasons
+    description: 'Which missed pages, by their unextracted reason: fetch_failed, blocked, incomplete, no_template, template_failed, stopped, not_found, robots_disallowed, private_address_refused. Empty: fetch_failed, blocked, incomplete, no_template, template_failed and stopped.'
+  outputs:
+  - name: message
+    value_type: text
+    display_name: Summary
+    description: The new run, how many pages by reason, and where its result will appear.
+  - name: run_id
+    value_type: text
+    display_name: New run id
+    description: The re-collect run; its run_completed event carries parent_run_id.
+  - name: parent_run_id
+    value_type: text
+    display_name: Run re-collected
+    description: The run whose missed pages it collects.
+  - name: state
+    value_type: text
+    display_name: State
+    description: ''
+  - name: url_count
+    value_type: integer
+    display_name: Pages
+    description: How many missed pages it collects again.
+  - name: by_reason
+    value_type: text
+    display_name: By reason
+    description: The pages by unextracted reason, e.g. 'fetch failed 10, blocked 2'.
+  - name: reasons
+    value_type: array
+    display_name: Reasons taken
+    description: The unextracted reasons the run covers.
+  - name: created
+    value_type: boolean
+    display_name: New
+    description: False when the same request had already started this run.
+  result_fields:
+  - result.message
+  - result.run_id
+  - result.parent_run_id
+  - result.state
+  - result.url_count
+  - result.by_reason
+  - result.reasons
+  - result.created
+  error_codes:
+  - invalid_host_envelope
+  - invalid_payload
+  - invalid_connection
+  - network_blocked
+  - service_unreachable
+  - service_timeout
+  - service_unauthorized
+  - service_unavailable
+  - service_error
+  - service_route_missing
+  - service_rejected_request
+  - invalid_service_response
+  - request_too_large
+  - internal_error
+  - run_not_found
+  - run_not_finished
+  - nothing_to_recollect
+  - config_invalid
+  - idempotency_key_reused
+  - service_busy
+  - service_secrets_key_missing

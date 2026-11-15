@@ -1,0 +1,4 @@
+component_id: extension_health
+type: health_panel
+title: Extension status
+query_id: extension_health

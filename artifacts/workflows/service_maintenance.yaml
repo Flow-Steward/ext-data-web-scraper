@@ -1,0 +1,186 @@
+# Generated from templates/service_maintenance.bundle.json by .github/scripts/extension_workflows.py; edit the
+# template JSON. The extension's read-only workflow (connection slot, hooks).
+workflow_id: service_maintenance
+version: 0.1.26
+display_name: Service maintenance
+description: 'Cleans up the Web Scraper service''s disk: removes finished runs'' files older than the
+  service''s own ages, keeps results Flow Steward has not fetched, and compacts the database. Give it
+  a weekly schedule. Provided by the Web Scraper extension: read-only, with hooks for your steps.'
+enabled: true
+trigger: {}
+settings:
+  callable:
+    enabled: true
+    trigger_channels:
+    - ui
+    - api
+    - mcp
+    - schedule
+    input_mode: fields
+    strict_inputs: true
+    expected_inputs:
+    - name: dry_run
+      label: Dry run only
+      type: boolean
+      required: false
+      description: 'On: nothing is removed; the job says what would be. Use it for a first run or a Test
+        Run. Empty: off - the clean-up removes.'
+    output_mode: variables
+    expected_outputs:
+    - name: storage_before
+      label: Storage before
+      type: string
+      required: false
+      description: What the service kept before the clean-up, and its free disk space.
+    - name: cleanup
+      label: Clean-up
+      type: string
+      required: false
+      description: What was removed (or, with Dry run only, would be).
+    - name: freed
+      label: Freed
+      type: string
+      required: false
+      description: The space freed, in MB or GB.
+    - name: bytes_freed
+      label: Bytes freed
+      type: number
+      required: false
+      description: The same in bytes.
+    - name: storage_after
+      label: Storage after
+      type: string
+      required: false
+      description: What the service keeps after the clean-up, and its free disk space.
+    expected_artifacts: []
+    side_effects: []
+  canvas_annotations:
+  - id: note_schedule
+    text: '## Run it every week
+
+      Enable this workflow, then its tab Schedules, New schedule: Repeat Weekly, a day and a time, Enabled,
+      Create schedule. A Test Run really cleans up; tick Dry run only to look first. Guide page: Disk
+      use and clean-up.'
+    x: -640
+    y: 0
+    width: 420
+    height: 260
+  - id: note_hooks
+    text: '## Your own steps
+
+      This workflow belongs to the Web Scraper extension and is read-only. Give it a weekly schedule on
+      its Schedules tab.'
+    x: -640
+    y: 300
+    width: 420
+    height: 240
+  execution_graph:
+    schema_version: 1
+    entry:
+      kind: step
+      id: storage_before
+    edges:
+    - source:
+        kind: step
+        id: storage_before
+      outcome:
+        name: success
+      target:
+        kind: step
+        id: clean_up
+      rework: false
+    - source:
+        kind: step
+        id: clean_up
+      outcome:
+        name: success
+      target:
+        kind: step
+        id: storage_after
+      rework: false
+    - source:
+        kind: step
+        id: storage_after
+      outcome:
+        name: success
+      target:
+        kind: step
+        id: done
+      rework: false
+  connection_slots:
+  - slot: scraper
+    extension_id: flowsteward.web-scraper
+    connection_type_ids:
+    - scraper_profile
+    label: Scraper profile
+  portability:
+    allow_full_export: true
+tags:
+- web-scraper
+- template
+steps:
+- step_id: storage_before
+  display_name: Storage before
+  step_kind: connector
+  connector_id: extension.flowsteward.web-scraper
+  connection_binding_jsonb:
+    slot: scraper
+  override:
+    connector:
+      extension_id: flowsteward.web-scraper
+      operation_id: service_storage
+  input_mapping_jsonb: {}
+  output_mapping_jsonb:
+    message: state.storage_before
+    details: state.storage
+  description: Reads what the service keeps and its own automatic clean-up ages, which the clean-up below
+    uses.
+- step_id: clean_up
+  display_name: Clean up service storage
+  step_kind: connector
+  connector_id: extension.flowsteward.web-scraper
+  connection_binding_jsonb:
+    slot: scraper
+  override:
+    connector:
+      extension_id: flowsteward.web-scraper
+      operation_id: clean_up_storage
+  input_mapping_jsonb:
+    dry_run: state.inputs.dry_run|default:false
+    working_files_older_than_days: state.storage.retention.stored_pages_days
+    result_files_older_than_days: state.storage.retention.result_days
+    include_unfetched_results: literal:false
+    run_records_older_than_days: state.storage.retention.job_record_days
+    samples_older_than_hours: state.storage.retention.samples_hours
+    compact_database: literal:true
+  output_mapping_jsonb:
+    message: state.cleanup
+    freed: state.freed
+    bytes_freed: state.bytes_freed
+  description: Removes what is older than the service's own ages; keeps results Flow Steward has not fetched;
+    compacts the database.
+- step_id: storage_after
+  display_name: Storage after
+  step_kind: connector
+  connector_id: extension.flowsteward.web-scraper
+  connection_binding_jsonb:
+    slot: scraper
+  override:
+    connector:
+      extension_id: flowsteward.web-scraper
+      operation_id: service_storage
+  input_mapping_jsonb: {}
+  output_mapping_jsonb:
+    message: state.storage_after
+  description: Reads the storage again, so the job shows the effect.
+- step_id: done
+  display_name: Clean-up done
+  step_kind: stop_success
+  override:
+    stop_success:
+      message: The service storage was cleaned up. This job's Result panel shows the storage before and
+        after (storage_before, storage_after), what was removed (cleanup) and the space freed (freed,
+        bytes_freed).
+  description: The Result panel shows the storage before and after and the space freed.
+groups: []
+for_each: []

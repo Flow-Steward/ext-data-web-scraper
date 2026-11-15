@@ -1,0 +1,20 @@
+component_id: run_detail_help
+type: markdown
+title: About this page
+collapsible: true
+content: |
+  Open a run from the Runs page. This page reloads every half minute.
+
+  **Results** names the files and links the *Scraper events* job that stored them:
+  open it to download `result.jsonl` or `result.csv`.
+
+  **Events** are the service's messages to the *Scraper events* workflow. *Send
+  again* shows only on an event that failed or was never handled; it delivers the
+  event again, and the workflow skips what it already did.
+
+  **Missed pages** lists the pages that ended without a record, with the reason. To
+  try them again, use *Re-collect missed pages* on the run's row on the Runs page.
+
+  **Stopping a crawl**: press *Stop* on the run's row on the Runs page. Cancelling the
+  *Scrape a site* job that waits for a run does not stop the crawl (Flow Steward does
+  not tell the extension about a cancel); *Status* reminds you while such a run goes on.

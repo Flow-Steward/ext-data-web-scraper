@@ -1,0 +1,5 @@
+page_id: guide
+title: Guide
+description: How the Web Scraper works, the setup checklist, every run form field, the steps of both workflows and troubleshooting.
+components:
+  - ref: ../components/guide.yaml

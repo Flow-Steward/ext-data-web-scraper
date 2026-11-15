@@ -1,0 +1,46 @@
+# Artifacts the Web Scraper actions read and write.
+#
+# validate_config reads the optional URL file of the run form (url_list mode).
+# get_result writes the run's result file. The canonical operator-tunable limit:
+# 200 MiB by default, FS_EXTENSION_ARTIFACT_MAX_BYTES overrides it, and local
+# file storage still caps an upload at 100 MiB (S3 storage lifts that). The
+# scraper service stops a run before its result passes its own max_result_bytes
+# (99 MiB by default), so a default installation always fits.
+policies:
+  - operation_id: validate_config
+    inputs:
+      - kind: artifact
+        value_type: artifact_handle
+        binding_key: urls_file
+        field: urls_file
+        required: false
+        max_size_bytes: 20971520
+  - operation_id: get_result
+    outputs:
+      - kind: artifact
+        value_type: artifact_handle
+        binding_key: result_artifact_handle
+        filename: result.jsonl
+        content_type: application/x-ndjson
+        max_size_bytes: 209715200
+        max_size_env: FS_EXTENSION_ARTIFACT_MAX_BYTES
+        retention_class: run_window
+  - operation_id: get_result_csv
+    outputs:
+      - kind: artifact
+        value_type: artifact_handle
+        binding_key: result_csv_handle
+        filename: result.csv
+        content_type: text/csv
+        max_size_bytes: 209715200
+        max_size_env: FS_EXTENSION_ARTIFACT_MAX_BYTES
+        retention_class: run_window
+  - operation_id: write_samples_file
+    outputs:
+      - kind: artifact
+        value_type: artifact_handle
+        binding_key: samples_file_handle
+        filename: samples.md
+        content_type: text/markdown
+        max_size_bytes: 4194304
+        retention_class: run_window

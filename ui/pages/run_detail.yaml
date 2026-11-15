@@ -1,0 +1,11 @@
+page_id: run_detail
+title: Run detail
+description: Everything about one run - opened from the Runs page.
+connection:
+  connection_type_ids: [scraper_profile]
+refresh_seconds: 30
+components:
+  - ref: ../components/run_report.yaml
+  - ref: ../components/run_events.yaml
+  - ref: ../components/run_missed.yaml
+  - ref: ../components/run_detail_help.yaml

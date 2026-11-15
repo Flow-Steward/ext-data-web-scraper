@@ -1,0 +1,59 @@
+# Clean-up of the service of the profile chosen at the top of the page.
+component_id: storage_cleanup
+type: form
+title: Clean up
+description: Set the ages, press 'Clean up - dry run' to see what would go, then tick 'Yes, remove these files' and press 'Clean up now'. A run that is not finished is never touched.
+# The service's own automatic clean-up ages, so a first dry run shows what a clean-up
+# adds to it: compacting, and nothing Flow Steward has not fetched yet.
+values:
+  working_files_older_than_days: 7
+  result_files_older_than_days: 14
+  include_unfetched_results: false
+  run_records_older_than_days: 30
+  samples_older_than_hours: 24
+  compact_database: true
+  confirm_removal: false
+ui_schema:
+  actions:
+    clean_up_storage:
+      action_id: clean_up_storage
+      label: Clean up - dry run
+    clean_up_storage_now:
+      action_id: clean_up_storage_now
+      label: Clean up now
+  fields:
+    - field_id: working_files_older_than_days
+      path: working_files_older_than_days
+      label: Working files older than (days)
+      widget: integer
+      help: The pages each finished run loaded. 0 means every finished run. Empty leaves them.
+    - field_id: result_files_older_than_days
+      path: result_files_older_than_days
+      label: Result files older than (days)
+      widget: integer
+      help: Flow Steward keeps its own copy in the Scraper events job. Empty leaves them.
+    - field_id: include_unfetched_results
+      path: include_unfetched_results
+      label: Include results Flow Steward has not fetched
+      widget: boolean
+      help: Off keeps every result Flow Steward has not stored yet. Turn it on only when you no longer need those results.
+    - field_id: run_records_older_than_days
+      path: run_records_older_than_days
+      label: Run records older than (days)
+      widget: integer
+      help: Whole finished runs; they leave the Runs page. Empty leaves them.
+    - field_id: samples_older_than_hours
+      path: samples_older_than_hours
+      label: Samples and screenshots older than (hours)
+      widget: integer
+      help: Pages fetched to build mappings, and screenshots of protection checks. 0 removes all. Empty leaves them.
+    - field_id: compact_database
+      path: compact_database
+      label: Compact the database
+      widget: boolean
+      help: Shrinks the database file; it waits until no run is active.
+    - field_id: confirm_removal
+      path: confirm_removal
+      label: Yes, remove these files
+      widget: boolean
+      help: Needed by 'Clean up now'. Removed files cannot be brought back.

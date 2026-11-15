@@ -1,0 +1,21 @@
+component_id: runs_help
+type: markdown
+title: Reading the runs
+collapsible: true
+content: |
+  The page shows the runs of the scraper profile chosen at the top, newest first,
+  and reloads every half minute. Click a row for everything about the run. The
+  filters above the table show one state or one site.
+
+  **State** — queued, running, waiting for the profile's secrets, stopping,
+  completed or failed. **Why it stopped** — finished, a limit (pages, records,
+  time, size), stopped by hand, blocked by the site; *complete* or *partial*.
+
+  A row shows a button only when it applies to that run:
+
+  - **Stop** — while the run is queued or running.
+  - **Resume** — when the service restarted and waits for the profile's secrets.
+  - **Re-collect missed pages** — when a finished run missed pages; a new run tries
+    only those.
+
+  The table shows the newest 100 runs, 20 per page.

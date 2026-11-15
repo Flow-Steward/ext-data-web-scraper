@@ -1,0 +1,23 @@
+# Read-only; 'Send again' only on an event that failed or was never handled. The job
+# column opens the Scraper events job that took the event (0.9.18 grid link).
+component_id: run_events
+type: grid
+title: Events
+query_id: run_events
+columns:
+  - {key: event, label: Event, type: text}
+  - {key: created, label: Time, type: datetime}
+  - {key: state, label: State, type: text}
+  - key: job
+    label: Job
+    type: link
+    link: {path_field: job_path}
+  - {key: attempts, label: Delivery attempts, type: text}
+row_fields: [job_path]
+row_actions:
+  - action_id: resend_event
+    label: Send again
+    visible_if: {path: can_send_again, eq: true}
+empty_state:
+  title: No events yet
+  description: The service sends an event when the run ends, needs a mapping repair or meets a problem.

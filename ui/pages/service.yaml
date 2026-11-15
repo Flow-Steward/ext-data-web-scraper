@@ -1,0 +1,10 @@
+page_id: service
+title: Service
+description: What the scraper service of the chosen profile keeps on its disk, and cleaning it up - a dry run first, then apply.
+connection:
+  connection_type_ids: [scraper_profile]
+refresh_seconds: 300
+components:
+  - ref: ../components/storage_report.yaml
+  - ref: ../components/storage_cleanup.yaml
+  - ref: ../components/service_help.yaml

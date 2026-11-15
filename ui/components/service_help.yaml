@@ -1,0 +1,18 @@
+component_id: service_help
+type: markdown
+title: About the service's disk
+collapsible: true
+content: |
+  The scraper service keeps everything on one disk volume: the pages each run
+  loaded (**working files**), the **result files**, **samples** and
+  **screenshots** used to build mappings, and its **database**. It removes old
+  items by itself; the report above says when, how much each part takes and how
+  much disk is free.
+
+  **Clean up - dry run** removes nothing; it says what would go and how much space
+  that frees. **Clean up now** removes it, after you tick *Yes, remove these
+  files*. A clean-up never touches a run that is not finished and keeps every
+  result Flow Steward has not fetched, unless you include them.
+
+  To clean up every week, import the template *Service maintenance* and give it a
+  weekly schedule (Guide page, "Disk use and clean-up").

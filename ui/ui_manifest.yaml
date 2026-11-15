@@ -1,0 +1,8 @@
+version: "1"
+pages:
+  - ref: pages/profiles.yaml
+  - ref: pages/service.yaml
+  - ref: pages/guide.yaml
+  - ref: pages/runs.yaml
+  - ref: pages/run_detail.yaml
+  - ref: pages/overview.yaml

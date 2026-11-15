@@ -1,0 +1,76 @@
+schema_version: extension_descriptor_v1
+lifecycle: {data_schema_version: 1, data_migrations: []}
+extension_id: flowsteward.web-scraper
+release_version: 0.1.26
+extension_type: service_extension
+identity:
+  display_name: Web Scraper
+  description: Collect product and page data from websites into a CSV or JSON Lines file for your workflows, through a scraper service you run yourself.
+  tags:
+    - web-scraping
+    - crawler
+    - data-extraction
+    - product-data
+    - price-monitoring
+    - json-lines
+    - csv
+vendor:
+  vendor_name: Flow Steward
+  support_url: https://github.com/Flow-Steward/ext-data-web-scraper/issues
+listing:
+  visibility: public_reference
+  category: data
+  categories:
+    - data
+    - ai
+distribution:
+  channel: private_byo
+  execution_modes:
+    - local
+  allows_self_hosted: true
+  requires_connected_control_plane: false
+  import_sources:
+    - file
+runtime:
+  contract_version: extension_host_v2
+  compatibility:
+    platform_min: 1.8.0
+  extension_contract_v2:
+    connection_types: contracts/connection_types.yaml
+    operation_manifest: contracts/operation_manifest.yaml
+    step_ui_manifest: contracts/step_ui_manifest.yaml
+    artifact_policies: contracts/artifact_policies.yaml
+dependencies:
+  extensions: []
+artifacts:
+  # impl_build_mapping implements the composite action build_mapping (ADR 0065):
+  # it is projected hidden and runs only as that action.
+  workflows:
+    - workflow_id: impl_build_mapping
+      ref: artifacts/workflows/impl_build_mapping.yaml
+      publish: true
+    # The extension's own read-only workflows (0.1.22): connection slot `scraper`
+    # (ADR 0068), hooks for each project's steps (ADR 0038), export and clone allowed.
+    # Generated from templates/*.bundle.json by .github/scripts/extension_workflows.py.
+    - workflow_id: scrape_a_site
+      ref: artifacts/workflows/scrape_a_site.yaml
+      publish: true
+    - workflow_id: scraper_events
+      ref: artifacts/workflows/scraper_events.yaml
+      publish: true
+    - workflow_id: service_maintenance
+      ref: artifacts/workflows/service_maintenance.yaml
+      publish: true
+  agents:
+    - agent_id: scraper_mapping_author
+      ref: artifacts/agents/scraper_mapping_author.yaml
+      publish: true
+  skills:
+    - skill_id: build_extraction_mapping
+      ref: artifacts/skills/build_extraction_mapping.yaml
+      publish: true
+provenance:
+  origin: imported
+  notes: Bundle-local YAML artifacts are the sole source of truth. Scrape a site, Scraper events and Service maintenance ship as read-only extension workflows; the same three also live in templates/ as workflow bundles for project copies.
+commerce:
+  billing_mode: free

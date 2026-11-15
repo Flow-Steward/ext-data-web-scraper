@@ -1,0 +1,4 @@
+component_id: storage_report
+type: markdown
+title: Service storage
+query_id: storage_report

@@ -1,0 +1,52 @@
+# Runs of the profile chosen in the platform's selector (page connection, ADR 0067).
+# The site opens Run detail, and so does a click anywhere in the row (0.9.18 grid
+# links); the filters set p.state / p.site. A row button shows only where it applies
+# to that run (visible_if on row flags).
+component_id: runs_table
+type: grid
+title: Runs
+query_id: runs_table
+columns:
+  - key: site
+    label: Site
+    type: link
+    link:
+      page: run_detail
+      params: {run_id: "{row.run_id}"}
+  - {key: state, label: State, type: badge}
+  - {key: progress, label: Progress, type: text}
+  - {key: records, label: Records, type: text}
+  - {key: why_stopped, label: Why it stopped, type: text}
+  - {key: started, label: Started, type: datetime}
+  - {key: finished, label: Finished, type: datetime}
+row_fields: [run_id]
+row_link:
+  page: run_detail
+  params: {run_id: "{row.run_id}"}
+filters:
+  - param: state
+    label: State
+    options:
+      - {value: queued, label: Queued}
+      - {value: running, label: Running}
+      - {value: waiting_for_credentials, label: Waiting for secrets}
+      - {value: stopping, label: Stopping}
+      - {value: completed, label: Completed}
+      - {value: failed, label: Failed}
+  - param: site
+    label: Site
+    type: text
+    placeholder: lumen-shop.example
+row_actions:
+  - action_id: stop_run
+    label: Stop
+    visible_if: {path: can_stop, eq: true}
+  - action_id: resume_run
+    label: Resume
+    visible_if: {path: can_resume, eq: true}
+  - action_id: recollect_run
+    label: Re-collect missed pages
+    visible_if: {path: can_recollect, eq: true}
+empty_state:
+  title: No runs yet
+  description: Start one with the workflow Scrape a site; it appears here within half a minute. With a filter set, clear it to see every run.

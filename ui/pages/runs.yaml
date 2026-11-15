@@ -1,0 +1,9 @@
+page_id: runs
+title: Runs
+description: The latest runs of the scraper profile chosen at the top of the page; open one for everything about it.
+connection:
+  connection_type_ids: [scraper_profile]
+refresh_seconds: 30
+components:
+  - ref: ../components/runs_table.yaml
+  - ref: ../components/runs_help.yaml

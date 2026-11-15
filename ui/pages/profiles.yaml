@@ -1,0 +1,6 @@
+page_id: profiles
+title: Profiles
+description: Start here - a scraper profile connects this project to the scraper service (URL, token, webhook, proxies). Save, approve use of secrets, test; the Guide page has the full setup checklist.
+components:
+  - ref: ../components/profile_connection_form.yaml
+  - ref: ../components/profiles_help.yaml

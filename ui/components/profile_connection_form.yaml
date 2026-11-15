@@ -1,0 +1,654 @@
+# The scraper_profile connection form. The platform's connection form shows one
+# flat list (no sections), so labels carry the group name and tier fields
+# appear only when the tier's provider is chosen.
+component_id: scraper_profiles
+type: connection_form
+title: Scraper profiles
+description: 'One profile is one way of scraping: the scraper service with its token and webhook, default
+  settings, up to three proxy tiers and an optional challenge solver. Workflow steps choose the profile
+  they use. Secrets are stored encrypted and never shown again.'
+data:
+  connection_kind: extension
+  connection_type: scraper_profile
+  # No config_fields: the browser then saves only the visible non-secret fields
+  # (connection-save.ts configuredConnectionFields). With the list declared it wrote
+  # "" for every hidden integer field when a profile was edited, and the schema
+  # refused the save. A hidden field keeps its last stored value; a tier or solver
+  # set to "Not used" is ignored by the handlers.
+  secret_fields:
+  - service_token
+  - webhook_signing_secret
+  - solver_api_key
+  - proxy_tier1_username
+  - proxy_tier1_password
+  - proxy_tier1_proxy_urls
+  - proxy_tier2_username
+  - proxy_tier2_password
+  - proxy_tier2_proxy_urls
+  - proxy_tier3_username
+  - proxy_tier3_password
+  - proxy_tier3_proxy_urls
+  required_secret_fields:
+  - service_token
+  test_action: test_connection
+defaults:
+  display_name: Scraper profile
+  tier: all
+  request_timeout_seconds: 60
+  default_discovery_mode: auto
+  default_fetch_mode: auto
+  default_browser: camoufox
+  default_block_heavy_resources: true
+  proxy_tier1_provider: none
+  proxy_tier2_provider: none
+  proxy_tier3_provider: none
+  proxy_tier1_protocol: http
+  proxy_tier2_protocol: http
+  proxy_tier3_protocol: http
+  proxy_tier1_auth_mode: user_password
+  proxy_tier2_auth_mode: user_password
+  proxy_tier3_auth_mode: user_password
+  proxy_tier1_session_mode: rotating
+  proxy_tier2_session_mode: rotating
+  proxy_tier3_session_mode: rotating
+  solver_provider: none
+ui_schema:
+  actions:
+    test_label: Test service
+    test_proxy:
+      action_id: test_proxy
+      label: Test proxy tiers
+    test_captcha_solver:
+      action_id: test_captcha_solver
+      label: Test challenge solver
+fields:
+- field_id: display_name
+  path: display_name
+  label: Connection name
+  widget: text
+  required: true
+  placeholder: Scraper – no proxy
+  help: How this profile appears in step pickers, for example 'Scraper – no proxy'.
+- field_id: profile_name
+  path: profile_name
+  label: Service · Profile name on the run page
+  widget: text
+  help: 'Shown on the extension''s run pages. Empty: the connection name.'
+- field_id: service_url
+  path: service_url
+  label: Service · URL
+  widget: url
+  required: true
+  placeholder: http://web-scraper:8080
+  help: Address of the scraper service as the platform reaches it, e.g. http://web-scraper:8080 inside
+    the same Docker network. A public address must use https. A private address also needs FS_ALLOW_PRIVATE_REMOTE_URLS=1
+    on the platform.
+- field_id: service_token
+  path: service_token
+  label: Service · Token
+  widget: secret
+  required: true
+  help: The bearer token of the scraper service (its variable WSS_API_TOKEN). Type it when you create
+    the profile; the stored-secret picker works only on a saved profile.
+- field_id: request_timeout_seconds
+  path: request_timeout_seconds
+  label: Service · Request timeout (seconds)
+  widget: integer
+  placeholder: '60'
+  help: How long a normal call to the service may take (5–300, default 60).
+- field_id: webhook_url
+  path: webhook_url
+  label: Events · Webhook URL
+  widget: url
+  placeholder: https://flow.example.com/webhook/workflows/…
+  help: URL of the incoming webhook of your imported 'Scraper events' workflow (its settings, tab Webhook)
+    as the scraper service reaches the platform; on one Docker host for example
+    http://compact-runtime:8080/webhook/workflows/<key>, not the public localhost address.
+- field_id: webhook_signing_secret
+  path: webhook_signing_secret
+  label: Events · Webhook signing secret
+  widget: secret
+  help: The credential the platform generated for that webhook (auth mode 'HMAC SHA256', header
+    X-Scraper-Body-Signature). It is shown once, under 'One-time credential reveal', right after the
+    webhook is created.
+- field_id: default_discovery_mode
+  path: default_discovery_mode
+  label: Defaults · Discovery
+  widget: select
+  help: 'How pages are found when a run does not say: automatic chooses sitemap, links or both after analysing
+    the site.'
+  options:
+  - label: Automatic
+    value: auto
+  - label: Sitemap only
+    value: sitemap
+  - label: Follow links
+    value: crawl
+  - label: Sitemap and links
+    value: sitemap_and_crawl
+- field_id: default_fetch_mode
+  path: default_fetch_mode
+  label: Defaults · Fetch mode
+  widget: select
+  help: Automatic decides per page whether a browser is needed.
+  options:
+  - label: Automatic
+    value: auto
+  - label: HTTP only
+    value: http
+  - label: Browser always
+    value: browser
+- field_id: default_browser
+  path: default_browser
+  label: Defaults · Browser
+  widget: select
+  help: Browser for pages that need one. Camoufox resists bot detection better.
+  options:
+  - label: Camoufox
+    value: camoufox
+  - label: Chromium
+    value: chromium
+  - label: Automatic
+    value: auto
+- field_id: default_max_concurrency
+  path: default_max_concurrency
+  label: Defaults · Concurrency
+  widget: integer
+  placeholder: '2'
+  help: 'Pages loaded at the same time (1–64). Empty: from the run''s Politeness (normal 2); a value here overrides Politeness on every run of this profile.'
+- field_id: default_max_requests_per_minute
+  path: default_max_requests_per_minute
+  label: Defaults · Requests per minute
+  widget: integer
+  placeholder: '30'
+  help: 'Upper bound per run. Empty: from the run''s Politeness (normal 30); a value here overrides Politeness on every run of this profile.'
+- field_id: default_delay_min_seconds
+  path: default_delay_min_seconds
+  label: Defaults · Minimum delay (seconds)
+  widget: number
+  placeholder: '2'
+  help: 'Random pause between requests: lower bound. Empty: from the run''s Politeness (normal 2); a value here overrides Politeness on every run of this profile.'
+- field_id: default_delay_max_seconds
+  path: default_delay_max_seconds
+  label: Defaults · Maximum delay (seconds)
+  widget: number
+  placeholder: '5'
+  help: 'Random pause between requests: upper bound. Empty: from the run''s Politeness (normal 5); a value here overrides Politeness on every run of this profile.'
+- field_id: default_max_retries
+  path: default_max_retries
+  label: Defaults · Retries
+  widget: integer
+  placeholder: '3'
+  help: Retries of a failed page (default 3).
+- field_id: default_block_heavy_resources
+  path: default_block_heavy_resources
+  label: Defaults · Block images, fonts and media in the browser
+  widget: boolean
+  help: Faster and cheaper on proxies; on by default.
+- field_id: default_sample_count
+  path: default_sample_count
+  label: Defaults · Sample pages for the mapping
+  widget: integer
+  placeholder: '5'
+  help: Pages fetched to build and test a mapping (default 5).
+- field_id: default_required_fill_threshold
+  path: default_required_fill_threshold
+  label: Defaults · Fill threshold of required fields
+  widget: number
+  placeholder: '0.9'
+  help: Share of samples a required field must fill for a mapping to pass (0–1, default 0.9).
+- field_id: default_max_refinements
+  path: default_max_refinements
+  label: Defaults · Mapping refinements
+  widget: integer
+  placeholder: '2'
+  help: How often the AI may refine a mapping after the first try (default 2).
+- field_id: default_max_repairs_per_template
+  path: default_max_repairs_per_template
+  label: Defaults · Repairs per template
+  widget: integer
+  placeholder: '2'
+  help: Mapping repairs per page template within one run (default 2).
+- field_id: default_max_repairs_per_job
+  path: default_max_repairs_per_job
+  label: Defaults · Repairs per run
+  widget: integer
+  placeholder: '5'
+  help: Mapping repairs per run in total (default 5).
+- field_id: default_max_clicks_per_job
+  path: default_max_clicks_per_job
+  label: Defaults · Checkbox clicks per run
+  widget: integer
+  placeholder: '20'
+  help: Upper bound for challenge checkbox clicks, if the service allows them (default 20).
+- field_id: proxy_tier1_provider
+  path: proxy_tier1_provider
+  label: Proxy tier 1 · Provider
+  widget: select
+  help: Tier 1 is the cheapest, tried first. A preset (Oxylabs, Bright Data, Decodo) fills the endpoint
+    when you leave it empty; 'Generic' works with any provider as scheme://user:password@host:port.
+  options:
+  - label: Not used
+    value: none
+  - label: Generic (any provider)
+    value: generic
+  - label: Oxylabs
+    value: oxylabs
+  - label: Bright Data
+    value: bright_data
+  - label: Decodo (Smartproxy)
+    value: decodo
+  - label: Own proxy list
+    value: custom_list
+- field_id: proxy_tier1_protocol
+  path: proxy_tier1_protocol
+  label: Proxy tier 1 · Protocol
+  widget: select
+  options:
+  - label: HTTP only
+    value: http
+  - label: HTTPS
+    value: https
+  - label: SOCKS5
+    value: socks5
+  visible_if: &id001
+  - &id002
+    path: proxy_tier1_provider
+    in: &id005
+    - generic
+    - oxylabs
+    - bright_data
+    - decodo
+- field_id: proxy_tier1_host
+  path: proxy_tier1_host
+  label: Proxy tier 1 · Host
+  widget: text
+  placeholder: proxy.example.net
+  help: 'Empty with a preset provider: the provider''s gateway.'
+  visible_if: *id001
+- field_id: proxy_tier1_port
+  path: proxy_tier1_port
+  label: Proxy tier 1 · Port
+  widget: integer
+  placeholder: '8080'
+  visible_if: *id001
+- field_id: proxy_tier1_auth_mode
+  path: proxy_tier1_auth_mode
+  label: Proxy tier 1 · Authentication
+  widget: select
+  options:
+  - label: User name and password
+    value: user_password
+  - label: IP allow-list (service IP registered at the provider)
+    value: ip_allowlist
+  visible_if: *id001
+- field_id: proxy_tier1_username
+  path: proxy_tier1_username
+  label: Proxy tier 1 · User name
+  widget: secret
+  help: The provider's base user name; the service adds country and session parameters itself.
+  visible_if:
+  - *id002
+  - path: proxy_tier1_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier1_password
+  path: proxy_tier1_password
+  label: Proxy tier 1 · Password
+  widget: secret
+  visible_if:
+  - *id002
+  - path: proxy_tier1_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier1_proxy_urls
+  path: proxy_tier1_proxy_urls
+  label: Proxy tier 1 · Proxy list
+  widget: secret
+  help: 'Your own proxies: scheme://user:password@host:port, separated by spaces or commas.'
+  visible_if:
+  - path: proxy_tier1_provider
+    eq: custom_list
+- field_id: proxy_tier1_country
+  path: proxy_tier1_country
+  label: Proxy tier 1 · Country
+  widget: text
+  placeholder: DE
+  help: Two-letter country code for the exit IP, e.g. DE. Ignored by 'Generic'.
+  visible_if: &id003
+  - &id004
+    path: proxy_tier1_provider
+    in:
+    - generic
+    - oxylabs
+    - bright_data
+    - decodo
+    - custom_list
+- field_id: proxy_tier1_city
+  path: proxy_tier1_city
+  label: Proxy tier 1 · City
+  widget: text
+  help: Optional; only some providers support it.
+  visible_if: *id003
+- field_id: proxy_tier1_session_mode
+  path: proxy_tier1_session_mode
+  label: Proxy tier 1 · Session
+  widget: select
+  help: Challenge handling needs a sticky session.
+  options:
+  - label: Rotating (new IP per request)
+    value: rotating
+  - label: Sticky (same IP for a while)
+    value: sticky
+  visible_if: *id003
+- field_id: proxy_tier1_sticky_minutes
+  path: proxy_tier1_sticky_minutes
+  label: Proxy tier 1 · Sticky minutes
+  widget: integer
+  placeholder: '10'
+  help: How long one sticky IP is kept (default 10).
+  visible_if:
+  - *id004
+  - path: proxy_tier1_session_mode
+    eq: sticky
+- field_id: proxy_tier2_provider
+  path: proxy_tier2_provider
+  label: Proxy tier 2 · Provider
+  widget: select
+  help: Tier 2 is used after a block on tier 1. A preset (Oxylabs, Bright Data, Decodo) fills the endpoint
+    when you leave it empty; 'Generic' works with any provider as scheme://user:password@host:port.
+  options:
+  - label: Not used
+    value: none
+  - label: Generic (any provider)
+    value: generic
+  - label: Oxylabs
+    value: oxylabs
+  - label: Bright Data
+    value: bright_data
+  - label: Decodo (Smartproxy)
+    value: decodo
+  - label: Own proxy list
+    value: custom_list
+- field_id: proxy_tier2_protocol
+  path: proxy_tier2_protocol
+  label: Proxy tier 2 · Protocol
+  widget: select
+  options:
+  - label: HTTP only
+    value: http
+  - label: HTTPS
+    value: https
+  - label: SOCKS5
+    value: socks5
+  visible_if: &id006
+  - &id007
+    path: proxy_tier2_provider
+    in: *id005
+- field_id: proxy_tier2_host
+  path: proxy_tier2_host
+  label: Proxy tier 2 · Host
+  widget: text
+  placeholder: proxy.example.net
+  help: 'Empty with a preset provider: the provider''s gateway.'
+  visible_if: *id006
+- field_id: proxy_tier2_port
+  path: proxy_tier2_port
+  label: Proxy tier 2 · Port
+  widget: integer
+  placeholder: '8080'
+  visible_if: *id006
+- field_id: proxy_tier2_auth_mode
+  path: proxy_tier2_auth_mode
+  label: Proxy tier 2 · Authentication
+  widget: select
+  options:
+  - label: User name and password
+    value: user_password
+  - label: IP allow-list (service IP registered at the provider)
+    value: ip_allowlist
+  visible_if: *id006
+- field_id: proxy_tier2_username
+  path: proxy_tier2_username
+  label: Proxy tier 2 · User name
+  widget: secret
+  help: The provider's base user name; the service adds country and session parameters itself.
+  visible_if:
+  - *id007
+  - path: proxy_tier2_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier2_password
+  path: proxy_tier2_password
+  label: Proxy tier 2 · Password
+  widget: secret
+  visible_if:
+  - *id007
+  - path: proxy_tier2_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier2_proxy_urls
+  path: proxy_tier2_proxy_urls
+  label: Proxy tier 2 · Proxy list
+  widget: secret
+  help: 'Your own proxies: scheme://user:password@host:port, separated by spaces or commas.'
+  visible_if:
+  - path: proxy_tier2_provider
+    eq: custom_list
+- field_id: proxy_tier2_country
+  path: proxy_tier2_country
+  label: Proxy tier 2 · Country
+  widget: text
+  placeholder: DE
+  help: Two-letter country code for the exit IP, e.g. DE. Ignored by 'Generic'.
+  visible_if: &id008
+  - &id009
+    path: proxy_tier2_provider
+    in:
+    - generic
+    - oxylabs
+    - bright_data
+    - decodo
+    - custom_list
+- field_id: proxy_tier2_city
+  path: proxy_tier2_city
+  label: Proxy tier 2 · City
+  widget: text
+  help: Optional; only some providers support it.
+  visible_if: *id008
+- field_id: proxy_tier2_session_mode
+  path: proxy_tier2_session_mode
+  label: Proxy tier 2 · Session
+  widget: select
+  help: Challenge handling needs a sticky session.
+  options:
+  - label: Rotating (new IP per request)
+    value: rotating
+  - label: Sticky (same IP for a while)
+    value: sticky
+  visible_if: *id008
+- field_id: proxy_tier2_sticky_minutes
+  path: proxy_tier2_sticky_minutes
+  label: Proxy tier 2 · Sticky minutes
+  widget: integer
+  placeholder: '10'
+  help: How long one sticky IP is kept (default 10).
+  visible_if:
+  - *id009
+  - path: proxy_tier2_session_mode
+    eq: sticky
+- field_id: proxy_tier3_provider
+  path: proxy_tier3_provider
+  label: Proxy tier 3 · Provider
+  widget: select
+  help: Tier 3 is used after a block on tier 2. A preset (Oxylabs, Bright Data, Decodo) fills the endpoint
+    when you leave it empty; 'Generic' works with any provider as scheme://user:password@host:port.
+  options:
+  - label: Not used
+    value: none
+  - label: Generic (any provider)
+    value: generic
+  - label: Oxylabs
+    value: oxylabs
+  - label: Bright Data
+    value: bright_data
+  - label: Decodo (Smartproxy)
+    value: decodo
+  - label: Own proxy list
+    value: custom_list
+- field_id: proxy_tier3_protocol
+  path: proxy_tier3_protocol
+  label: Proxy tier 3 · Protocol
+  widget: select
+  options:
+  - label: HTTP only
+    value: http
+  - label: HTTPS
+    value: https
+  - label: SOCKS5
+    value: socks5
+  visible_if: &id010
+  - &id011
+    path: proxy_tier3_provider
+    in: *id005
+- field_id: proxy_tier3_host
+  path: proxy_tier3_host
+  label: Proxy tier 3 · Host
+  widget: text
+  placeholder: proxy.example.net
+  help: 'Empty with a preset provider: the provider''s gateway.'
+  visible_if: *id010
+- field_id: proxy_tier3_port
+  path: proxy_tier3_port
+  label: Proxy tier 3 · Port
+  widget: integer
+  placeholder: '8080'
+  visible_if: *id010
+- field_id: proxy_tier3_auth_mode
+  path: proxy_tier3_auth_mode
+  label: Proxy tier 3 · Authentication
+  widget: select
+  options:
+  - label: User name and password
+    value: user_password
+  - label: IP allow-list (service IP registered at the provider)
+    value: ip_allowlist
+  visible_if: *id010
+- field_id: proxy_tier3_username
+  path: proxy_tier3_username
+  label: Proxy tier 3 · User name
+  widget: secret
+  help: The provider's base user name; the service adds country and session parameters itself.
+  visible_if:
+  - *id011
+  - path: proxy_tier3_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier3_password
+  path: proxy_tier3_password
+  label: Proxy tier 3 · Password
+  widget: secret
+  visible_if:
+  - *id011
+  - path: proxy_tier3_auth_mode
+    neq: ip_allowlist
+- field_id: proxy_tier3_proxy_urls
+  path: proxy_tier3_proxy_urls
+  label: Proxy tier 3 · Proxy list
+  widget: secret
+  help: 'Your own proxies: scheme://user:password@host:port, separated by spaces or commas.'
+  visible_if:
+  - path: proxy_tier3_provider
+    eq: custom_list
+- field_id: proxy_tier3_country
+  path: proxy_tier3_country
+  label: Proxy tier 3 · Country
+  widget: text
+  placeholder: DE
+  help: Two-letter country code for the exit IP, e.g. DE. Ignored by 'Generic'.
+  visible_if: &id012
+  - &id013
+    path: proxy_tier3_provider
+    in:
+    - generic
+    - oxylabs
+    - bright_data
+    - decodo
+    - custom_list
+- field_id: proxy_tier3_city
+  path: proxy_tier3_city
+  label: Proxy tier 3 · City
+  widget: text
+  help: Optional; only some providers support it.
+  visible_if: *id012
+- field_id: proxy_tier3_session_mode
+  path: proxy_tier3_session_mode
+  label: Proxy tier 3 · Session
+  widget: select
+  help: Challenge handling needs a sticky session.
+  options:
+  - label: Rotating (new IP per request)
+    value: rotating
+  - label: Sticky (same IP for a while)
+    value: sticky
+  visible_if: *id012
+- field_id: proxy_tier3_sticky_minutes
+  path: proxy_tier3_sticky_minutes
+  label: Proxy tier 3 · Sticky minutes
+  widget: integer
+  placeholder: '10'
+  help: How long one sticky IP is kept (default 10).
+  visible_if:
+  - *id013
+  - path: proxy_tier3_session_mode
+    eq: sticky
+- field_id: solver_provider
+  path: solver_provider
+  label: Challenge solver · Provider
+  widget: select
+  help: Optional paid Turnstile solver. It is used only if the scraper service allows solvers and a run
+    asks for one ('use_solver').
+  options:
+  - label: Not used
+    value: none
+  - label: CapSolver
+    value: capsolver
+  - label: 2Captcha
+    value: two_captcha
+  - label: Anti-Captcha
+    value: anti_captcha
+  - label: CapMonster Cloud
+    value: capmonster_cloud
+- field_id: solver_api_key
+  path: solver_api_key
+  label: Challenge solver · API key
+  widget: secret
+  visible_if: &id014
+  - path: solver_provider
+    in:
+    - capsolver
+    - two_captcha
+    - anti_captcha
+    - capmonster_cloud
+- field_id: solver_endpoint
+  path: solver_endpoint
+  label: Challenge solver · API address
+  widget: url
+  help: Only to override the provider's default API address.
+  visible_if: *id014
+- field_id: solver_max_solves_per_job
+  path: solver_max_solves_per_job
+  label: Challenge solver · Solves per run
+  widget: integer
+  placeholder: '20'
+  help: Spending guard (default 20).
+  visible_if: *id014
+- field_id: tier
+  path: tier
+  label: Check · Proxy tier to test
+  widget: select
+  help: Used only by 'Test proxy tiers'.
+  options:
+  - label: Every configured tier
+    value: all
+  - label: Tier 1
+    value: '1'
+  - label: Tier 2
+    value: '2'
+  - label: Tier 3
+    value: '3'

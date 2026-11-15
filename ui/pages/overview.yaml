@@ -1,0 +1,6 @@
+page_id: overview
+title: About
+description: What the Web Scraper does, in short.
+components:
+  - ref: ../components/setup_overview.yaml
+  - ref: ../components/extension_health.yaml

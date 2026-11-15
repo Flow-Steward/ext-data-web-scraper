@@ -1,0 +1,91 @@
+# Page queries. `extension_health` runs without a connection. The others run with
+# the scraper profile chosen in the platform's selector at the top of the page
+# (ADR 0067, host 1.7.0): they only read the scraper service.
+queries:
+  - query_id: extension_health
+    title: Extension health
+    description: Runtime health of the extension and the four setup steps.
+    required_scopes:
+      - extension:invoke
+    result_fields:
+      - result.status
+      - result.configured
+      - result.checks
+    error_codes:
+      - internal_error
+    handler:
+      mode: extension
+  - query_id: runs_table
+    title: Runs
+    description: The latest runs of the selected profile, newest first, with the flags that show the row buttons.
+    required_scopes:
+      - extension:invoke
+    connection:
+      connection_type_ids: [scraper_profile]
+    result_fields:
+      - result.items
+      - result.total
+    error_codes: &page_errors
+      - invalid_connection
+      - network_blocked
+      - service_unreachable
+      - service_timeout
+      - service_unauthorized
+      - service_unavailable
+      - service_error
+      - service_route_missing
+      - service_rejected_request
+      - invalid_service_response
+      - internal_error
+    handler:
+      mode: extension
+  - query_id: run_report
+    title: Run detail
+    description: One run (page parameter run_id) in plain sections.
+    required_scopes:
+      - extension:invoke
+    connection:
+      connection_type_ids: [scraper_profile]
+    result_fields:
+      - result.content
+    error_codes: *page_errors
+    handler:
+      mode: extension
+  - query_id: run_events
+    title: Events
+    description: The run's events, read-only, with the values 'Send again' needs.
+    required_scopes:
+      - extension:invoke
+    connection:
+      connection_type_ids: [scraper_profile]
+    result_fields:
+      - result.items
+      - result.total
+    error_codes: *page_errors
+    handler:
+      mode: extension
+  - query_id: run_missed
+    title: Missed pages
+    description: The pages of the run that ended without a record, with the reason.
+    required_scopes:
+      - extension:invoke
+    connection:
+      connection_type_ids: [scraper_profile]
+    result_fields:
+      - result.items
+      - result.total
+    error_codes: *page_errors
+    handler:
+      mode: extension
+  - query_id: storage_report
+    title: Service storage
+    description: What the scraper service keeps on its disk.
+    required_scopes:
+      - extension:invoke
+    connection:
+      connection_type_ids: [scraper_profile]
+    result_fields:
+      - result.content
+    error_codes: *page_errors
+    handler:
+      mode: extension

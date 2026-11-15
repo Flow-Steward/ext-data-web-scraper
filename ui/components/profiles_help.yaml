@@ -1,0 +1,28 @@
+component_id: profiles_help
+type: markdown
+title: About profiles
+collapsible: true
+content: |
+  **Several profiles per project.** For example *No proxy* for friendly sites and
+  *Residential DE + solver* for protected ones. A workflow step uses the profile
+  chosen on it.
+
+  **Proxy tiers** are tried from tier 1 upwards. The service moves a site to the next
+  tier only after a block, never after an ordinary error. *Generic* works with any
+  provider; a preset fills the gateway and builds the provider's own user-name
+  parameters for country and sticky sessions. *IP allow-list* means the scraper
+  service's IP address is registered at the provider, so no password is stored.
+
+  **Challenge handling** (checkbox click and paid solvers) is off unless the
+  operator of the scraper service allows it *and* a run asks for it on
+  the run form. It needs a sticky proxy session.
+
+  **Test buttons.** *Test service* checks the address and the token. *Test proxy
+  tiers* sends one request through each configured tier (or the one chosen in
+  *Check · Proxy tier to test*) and shows the exit IP and country. *Test challenge
+  solver* checks the key and shows the balance where the provider reports one.
+  Save the profile before testing it.
+
+  Secrets (token, webhook secret, proxy passwords and lists, solver key) are stored
+  encrypted, can be chosen from stored secrets, are sent to the scraper service only
+  with a run or a test, and are never shown on any page.

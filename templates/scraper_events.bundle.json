@@ -1,0 +1,1535 @@
+{
+  "schema_version": "platform.workflow_bundle.v2",
+  "kind": "workflow_bundle",
+  "metadata": {
+    "source": "flowsteward.web-scraper",
+    "source_version": "0.1.26",
+    "template_id": "scraper_events",
+    "description": "Template 'Scraper events' of the Web Scraper extension (signed webhook target).",
+    "contains_secrets": false,
+    "contains_connection_ids": false
+  },
+  "workflows": [
+    {
+      "workflow_id": "scraper_events",
+      "version": "0.1.26",
+      "display_name": "Scraper events",
+      "description": "Receives the Web Scraper service's signed webhook. A finished or failed run wakes the Scrape a site job that waits for it (0.1.23 and later), which stores the files itself; a run started otherwise gets its result file stored here. Also handles mapping_required (repairs the mapping with AI), problem and run_failed.",
+      "enabled": false,
+      "trigger": {},
+      "settings": {
+        "callable": {
+          "enabled": true,
+          "trigger_channels": [
+            "webhook",
+            "ui",
+            "api"
+          ],
+          "input_mode": "fields",
+          "strict_inputs": false,
+          "expected_inputs": [
+            {
+              "name": "event_id",
+              "label": "Event id",
+              "type": "string",
+              "required": true,
+              "description": "Webhook body field event_id."
+            },
+            {
+              "name": "event_type",
+              "label": "Event type",
+              "type": "string",
+              "required": true,
+              "description": "Webhook body field event_type: run_completed, mapping_required, problem or run_failed."
+            },
+            {
+              "name": "run_id",
+              "label": "Run id",
+              "type": "string",
+              "required": true,
+              "description": "Webhook body field run_id."
+            },
+            {
+              "name": "resource_id",
+              "label": "Resource id",
+              "type": "string",
+              "required": true,
+              "description": "Webhook body field resource_id: the run, or the mapping request of a mapping_required event."
+            }
+          ],
+          "output_mode": "variables_and_artifacts",
+          "expected_outputs": [
+            {
+              "name": "run_summary",
+              "label": "Run summary",
+              "type": "string",
+              "required": false,
+              "description": "Why the run stopped, how complete it is, and why there is no file when it has no records."
+            },
+            {
+              "name": "result",
+              "label": "Result file details",
+              "type": "object",
+              "required": false,
+              "description": "From 'Get result': run id, file name, records, size, SHA-256, outcome, stop reason, records per template."
+            },
+            {
+              "name": "result_preview",
+              "label": "First rows",
+              "type": "array",
+              "required": false,
+              "description": "The first 10 records of the result file, from 'Example: read the result'."
+            }
+          ],
+          "expected_artifacts": [
+            {
+              "name": "result_file",
+              "type": "file",
+              "required": false,
+              "description": "result.jsonl, one JSON record per line. Returned from 'Get result' (Return from workflow)."
+            },
+            {
+              "name": "result_csv",
+              "type": "file",
+              "required": false,
+              "description": "The same records as CSV (UTF-8 with BOM, separator ';'), from 'Get result CSV'. Absent with a service older than 2026-11-14."
+            }
+          ],
+          "side_effects": []
+        },
+        "canvas_annotations": [
+          {
+            "id": "note_webhook",
+            "text": "## Trigger\nSettings, tab Webhook, New webhook: Custom; Auth mode HMAC SHA256; header X-Scraper-Body-Signature; Require Idempotency-Key. Copy the credential and the platform's internal webhook URL into the scraper profile, save, approve. Guide page, setup step 6.",
+            "x": -640,
+            "y": 0,
+            "width": 420,
+            "height": 300
+          },
+          {
+            "id": "note_process",
+            "text": "## Place for your own steps: process the result\nBetween 'Get result' (and 'Get result CSV') and 'Mark processed', for runs not started by Scrape a site 0.1.23+ (that one stores and returns the files itself: process them in your own workflow that calls it with Invoke). state.result has artifact_handle (result.jsonl), record_count and outcome; 'Example: read the result' reads the records. Skipped for a run without records and for a resent event already processed.",
+            "x": -640,
+            "y": 340,
+            "width": 420,
+            "height": 260
+          },
+          {
+            "id": "note_after",
+            "text": "## Place for your own steps: after completion\nBetween 'Mark processed' and 'Mark completed', for example a notification.",
+            "x": -640,
+            "y": 640,
+            "width": 380,
+            "height": 200
+          },
+          {
+            "id": "note_error",
+            "text": "## Place for your own steps: on error\nAfter 'Get run summary' on the problem / run_failed branch: state.problem has terminal, error, errors and state. For example notify someone, or start 'Scrape a site' again.",
+            "x": -640,
+            "y": 880,
+            "width": 380,
+            "height": 200
+          },
+          {
+            "id": "note_keep_events",
+            "text": "## Keep these steps\nClaim event, Ours?, Mark processed, Mark completed and Complete event make every event handled exactly once, also after a resend. Do not remove them; add your steps between them.",
+            "x": -640,
+            "y": 1120,
+            "width": 380,
+            "height": 200
+          },
+          {
+            "id": "note_failures",
+            "text": "## When a step fails\nKeep the error routes. 'Processing failed' keeps the event's claim: fix the cause, then open the run on Web Scraper > Runs; on Run detail, Events, press 'Send again'. The Guide page has the troubleshooting list.",
+            "x": -640,
+            "y": 1360,
+            "width": 460,
+            "height": 300
+          }
+        ]
+      },
+      "participants": [],
+      "tags": [
+        "web-scraper",
+        "template"
+      ],
+      "steps": [
+        {
+          "step_id": "claim_event",
+          "display_name": "Claim event",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "claim_event"
+            }
+          },
+          "input_mapping_jsonb": {
+            "event_id": "state.inputs.event_id"
+          },
+          "output_mapping_jsonb": {
+            "claimed": "state.claim.claimed",
+            "status": "state.claim.status",
+            "claim_id": "state.claim.claim_id",
+            "route": "state.claim.route",
+            "processed_recorded": "state.claim.processed_recorded",
+            "completed_recorded": "state.claim.completed_recorded",
+            "message": "state.claim.message"
+          },
+          "description": "Reserves the event for this run. For a completed or failed run it also wakes the Scrape a site job that waits for that run. Keep this step: without it two runs could process the same result."
+        },
+        {
+          "step_id": "claimed",
+          "display_name": "Ours?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.claim.claimed",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "Is this job the one that holds the event?"
+        },
+        {
+          "step_id": "not_ours",
+          "display_name": "Handled elsewhere",
+          "step_kind": "stop_success",
+          "override": {
+            "stop_success": {
+              "message": "Another run holds this event, or it was handled already; nothing to do."
+            }
+          },
+          "description": "Another job holds this event, or it was handled already; nothing to do."
+        },
+        {
+          "step_id": "route_event",
+          "display_name": "Event type",
+          "step_kind": "switch",
+          "override": {
+            "switch": {
+              "selector": "state.claim.route",
+              "cases": [
+                {
+                  "case_id": "run_completed",
+                  "when": "run_completed",
+                  "label": "Run completed"
+                },
+                {
+                  "case_id": "mapping_required",
+                  "when": "mapping_required",
+                  "label": "Mapping required"
+                },
+                {
+                  "case_id": "problem",
+                  "when": "problem",
+                  "label": "Problem"
+                },
+                {
+                  "case_id": "run_failed",
+                  "when": "run_failed",
+                  "label": "Run failed"
+                }
+              ]
+            }
+          },
+          "description": "Run completed, mapping required, or a problem."
+        },
+        {
+          "step_id": "already_completed",
+          "display_name": "Completed before?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.claim.completed_recorded",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "A resent event that was completed before skips everything."
+        },
+        {
+          "step_id": "run_summary",
+          "display_name": "Get run summary",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_run_summary"
+            }
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.inputs.run_id"
+          },
+          "output_mapping_jsonb": {
+            "outcome": "state.run.outcome",
+            "stop_reason": "state.run.stop_reason",
+            "templates": "state.run.templates",
+            "counters": "state.run.counters",
+            "site": "state.run.site",
+            "has_records": "state.run.has_records",
+            "record_count": "state.run.record_count",
+            "no_records_message": "state.run.no_records_message",
+            "explanation": "state.run.explanation",
+            "completeness": "state.run.completeness",
+            "comparison_warning": "state.run.comparison_warning",
+            "timeline": "state.run.timeline",
+            "message": "state.run_summary",
+            "result_by_starter": "state.run.result_by_starter"
+          },
+          "description": "Why the run stopped, how complete it is (and any drop against the previous run), and the record count."
+        },
+        {
+          "step_id": "starter_fetches",
+          "display_name": "Stored by Scrape a site?",
+          "step_kind": "if",
+          "description": "Scrape a site 0.1.23+ waits for its own run and stores its files ('Claim event' woke it); then this job only marks the event handled. Other runs get their files here.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.run.result_by_starter",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "already_processed",
+          "display_name": "Processed before?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.claim.processed_recorded",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "A resent event that was processed before skips the result steps."
+        },
+        {
+          "step_id": "has_records",
+          "display_name": "Any records?",
+          "step_kind": "if",
+          "description": "No records (stopped early, or nothing extracted): no result file, 'Get result' is skipped and the event is still marked handled.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.run.has_records",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "get_result",
+          "display_name": "Get result",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_result"
+            },
+            "returned_files": [
+              {
+                "result": "artifact_handle",
+                "key": "result_file"
+              }
+            ]
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.inputs.run_id"
+          },
+          "output_mapping_jsonb": {
+            "artifact_handle": "state.result.artifact_handle",
+            "record_count": "state.result.record_count",
+            "size_bytes": "state.result.size_bytes",
+            "sha256": "state.result.sha256",
+            "templates": "state.result.templates",
+            "outcome": "state.result.outcome",
+            "stop_reason": "state.result.stop_reason",
+            "run_id": "state.result.run_id",
+            "file_name": "state.result.file_name",
+            "has_csv": "state.result.has_csv"
+          },
+          "description": "Stores the result file (JSON Lines) as an artifact of this run and returns its descriptor - never the records.",
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "has_csv",
+          "display_name": "CSV available?",
+          "step_kind": "if",
+          "description": "A service from 2026-11-14 on also writes the records as CSV; an older one does not, and the CSV step is skipped.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.result.has_csv",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "get_result_csv",
+          "display_name": "Get result CSV",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_result_csv"
+            },
+            "returned_files": [
+              {
+                "result": "artifact_handle",
+                "key": "result_csv"
+              }
+            ]
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.inputs.run_id"
+          },
+          "output_mapping_jsonb": {
+            "artifact_handle": "state.result_csv.artifact_handle",
+            "file_name": "state.result_csv.file_name",
+            "size_bytes": "state.result_csv.size_bytes"
+          },
+          "description": "Stores the same records as CSV (separator ';', for Excel) beside result.jsonl, after checking size and checksum.",
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "read_result",
+          "display_name": "Example: read the result",
+          "step_kind": "tabular_feed",
+          "description": "Working example: reads every record into a dataset (state.result_table); the first 10 rows become the job's result_preview. Replace or extend it.",
+          "override": {
+            "tabular_feed": {
+              "operation": "read",
+              "input": {
+                "artifact_handle": "state.result.artifact_handle"
+              },
+              "options": {
+                "format": "ndjson"
+              },
+              "result_target": "state.result_table"
+            }
+          },
+          "error_policy": {
+            "on_error": "route_to_step"
+          },
+          "output_mapping_jsonb": {
+            "preview_rows": "state.result_preview"
+          }
+        },
+        {
+          "step_id": "mark_processed",
+          "display_name": "Mark processed",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "mark_event_stage"
+            }
+          },
+          "input_mapping_jsonb": {
+            "event_id": "state.inputs.event_id",
+            "claim_id": "state.claim.claim_id",
+            "stage": "literal:\"processed\""
+          },
+          "output_mapping_jsonb": {
+            "last_stage": "state.claim.last_stage"
+          },
+          "description": "Keep this step after your processing steps: a resent event then skips them."
+        },
+        {
+          "step_id": "mark_completed",
+          "display_name": "Mark completed",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "mark_event_stage"
+            }
+          },
+          "input_mapping_jsonb": {
+            "event_id": "state.inputs.event_id",
+            "claim_id": "state.claim.claim_id",
+            "stage": "literal:\"completed\""
+          },
+          "output_mapping_jsonb": {
+            "last_stage": "state.claim.last_stage"
+          },
+          "description": "Keep this step after your closing steps."
+        },
+        {
+          "step_id": "mapping_request",
+          "display_name": "Get mapping request",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_mapping_request"
+            }
+          },
+          "input_mapping_jsonb": {
+            "mapping_request_id": "state.inputs.resource_id"
+          },
+          "output_mapping_jsonb": {
+            "is_open": "state.request.is_open",
+            "site": "state.request.site",
+            "sample_ids": "state.request.sample_ids",
+            "samples": "state.request.samples",
+            "extraction_instructions": "state.request.extraction_instructions",
+            "fields": "state.request.fields",
+            "required_fields": "state.request.required_fields",
+            "required_fill_threshold": "state.request.required_fill_threshold",
+            "extraction_mode": "state.request.extraction_mode",
+            "previous_mappings": "state.request.previous_mappings",
+            "failures": "state.request.failures",
+            "suggested_template_id": "state.request.suggested_template_id",
+            "expected_versions": "state.request.expected_versions",
+            "run_id": "state.request.run_id",
+            "max_refinements": "state.request.max_refinements",
+            "target_page_selector": "state.request.target_page_selector",
+            "variant_sample_ids": "state.request.variant_sample_ids",
+            "ai_choose_fields": "state.request.ai_choose_fields",
+            "fields_hint": "state.request.fields_hint"
+          },
+          "description": "Reads the mapping request of a template that stopped extracting during the crawl."
+        },
+        {
+          "step_id": "request_open",
+          "display_name": "Still open?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.request.is_open",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "A request closed meanwhile (resolved, expired) needs no repair."
+        },
+        {
+          "step_id": "repair_mapping",
+          "display_name": "Build mapping (AI)",
+          "step_kind": "invoke_workflow",
+          "description": "The AI repairs the mapping; it is tested on the request's samples and refined at most twice.",
+          "override": {
+            "invoke_workflow": {
+              "workflow_id": "extension.flowsteward.web-scraper.impl_build_mapping",
+              "action": {
+                "extension_id": "flowsteward.web-scraper",
+                "install_id": "flowsteward.web-scraper",
+                "action_id": "build_mapping"
+              },
+              "connections": {
+                "profile": {
+                  "connection_id": "scraper_profile"
+                }
+              },
+              "input_mapping": {
+                "site": "state.request.site",
+                "sample_ids": "state.request.sample_ids",
+                "samples": "state.request.samples",
+                "extraction_instructions": "state.request.extraction_instructions",
+                "fields": "state.request.fields",
+                "required_fields": "state.request.required_fields",
+                "required_fill_threshold": "state.request.required_fill_threshold",
+                "extraction_mode": "state.request.extraction_mode",
+                "previous_mappings": "state.request.previous_mappings",
+                "previous_failures": "state.request.failures",
+                "suggested_template_id": "state.request.suggested_template_id",
+                "max_refinements": "state.request.max_refinements",
+                "target_page_selector": "state.request.target_page_selector",
+                "variant_sample_ids": "state.request.variant_sample_ids",
+                "ai_choose_fields": "state.request.ai_choose_fields",
+                "fields_hint": "state.request.fields_hint"
+              },
+              "output_mapping": {
+                "mappings": "state.repair.mappings",
+                "passed": "state.repair.passed",
+                "summary": "state.repair.summary",
+                "attempts": "state.repair.attempts"
+              }
+            }
+          },
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "repair_passed",
+          "display_name": "Repair passed?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.repair.passed",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "Did the repaired mapping pass the test?"
+        },
+        {
+          "step_id": "activate_repair",
+          "display_name": "Activate repaired mapping",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "activate_mapping"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site": "state.request.site",
+            "mappings": "state.repair.mappings",
+            "expected_versions": "state.request.expected_versions",
+            "mapping_request_id": "state.inputs.resource_id",
+            "run_id": "state.request.run_id",
+            "note": "literal:\"Repair from Scraper events\"",
+            "fail_on_conflict": "literal:false"
+          },
+          "output_mapping_jsonb": {
+            "conflict": "state.repair.conflict",
+            "summary": "state.repair.activation"
+          },
+          "description": "A version conflict is not an error: someone else repaired the template first, the candidate is dropped and the service re-evaluates its stored pages.",
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "report_failure",
+          "display_name": "Report mapping failure",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "fail_mapping_request"
+            }
+          },
+          "input_mapping_jsonb": {
+            "mapping_request_id": "state.inputs.resource_id",
+            "failure_reason": "state.repair.summary",
+            "attempts": "state.repair.attempts"
+          },
+          "output_mapping_jsonb": {
+            "status": "state.repair.request_status"
+          },
+          "description": "The template is given up for this run; the run goes on with the rest and ends partial."
+        },
+        {
+          "step_id": "problem_summary",
+          "display_name": "Get run summary",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_run_summary"
+            }
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.inputs.run_id"
+          },
+          "output_mapping_jsonb": {
+            "terminal": "state.problem.terminal",
+            "error": "state.problem.error",
+            "errors": "state.problem.errors",
+            "state": "state.problem.state",
+            "message": "state.problem.message",
+            "explanation": "state.problem.explanation",
+            "timeline": "state.problem.timeline"
+          },
+          "description": "Reads the run's problem or failure (site unavailable, sitemap outdated ...) with the service's explanation."
+        },
+        {
+          "step_id": "repair_conflict",
+          "display_name": "Conflict?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.repair.conflict",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "A newer mapping of this template was activated first, so the repaired one was dropped."
+        },
+        {
+          "step_id": "report_conflict",
+          "display_name": "Close request after conflict",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "fail_mapping_request"
+            }
+          },
+          "input_mapping_jsonb": {
+            "mapping_request_id": "state.inputs.resource_id",
+            "failure_reason": "literal:\"A newer mapping of this template was activated first; the repaired mapping was dropped.\""
+          },
+          "output_mapping_jsonb": {
+            "status": "state.repair.request_status"
+          },
+          "description": "Closes the mapping request unless the winning activation already resolved it (then nothing happens)."
+        },
+        {
+          "step_id": "report_repair_error",
+          "display_name": "Fail mapping request (error)",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "fail_mapping_request"
+            }
+          },
+          "input_mapping_jsonb": {
+            "mapping_request_id": "state.inputs.resource_id",
+            "failure_reason": "literal:\"The repair failed with an error in the Scraper events workflow; see that platform job.\""
+          },
+          "output_mapping_jsonb": {
+            "status": "state.repair.request_status"
+          },
+          "description": "Reached when 'Build mapping (AI)' or 'Activate repaired mapping' fails. The service gives the template up for this run at once instead of after the request timeout."
+        },
+        {
+          "step_id": "complete_after_error",
+          "display_name": "Complete event (error)",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "complete_event"
+            }
+          },
+          "input_mapping_jsonb": {
+            "event_id": "state.inputs.event_id",
+            "claim_id": "state.claim.claim_id"
+          },
+          "output_mapping_jsonb": {
+            "state": "state.event_state"
+          },
+          "description": "The mapping request is closed, so the event is handled; the job still ends as failed so the error is seen."
+        },
+        {
+          "step_id": "repair_failed",
+          "display_name": "Repair failed",
+          "step_kind": "stop_fail",
+          "override": {
+            "stop_fail": {
+              "message": "The mapping repair failed with an error (see the failed step). The service was told, the template is given up for this run, and the event is marked handled."
+            }
+          },
+          "description": "The repair failed with an error; the template is given up for this run and the event is handled."
+        },
+        {
+          "step_id": "processing_failed",
+          "display_name": "Processing failed",
+          "step_kind": "stop_fail",
+          "override": {
+            "stop_fail": {
+              "message": "Getting or processing the result failed (see the failed step). Nothing was marked processed and this job still holds the event's claim. Fix the cause, then open the run on Web Scraper > Runs and, on Run detail under Events, press 'Send again'."
+            }
+          },
+          "description": "Get result or your processing failed; this job keeps the claim. Fix it, then Run detail > Events > Send again."
+        },
+        {
+          "step_id": "complete_event",
+          "display_name": "Complete event",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "complete_event"
+            }
+          },
+          "input_mapping_jsonb": {
+            "event_id": "state.inputs.event_id",
+            "claim_id": "state.claim.claim_id"
+          },
+          "output_mapping_jsonb": {
+            "state": "state.event_state"
+          },
+          "description": "Keep this step: it marks the event handled."
+        },
+        {
+          "step_id": "handled",
+          "display_name": "Event handled",
+          "step_kind": "stop_success",
+          "override": {
+            "stop_success": {
+              "message": "The scraper event was handled. A run started by Scrape a site 0.1.23 or later has its files in that job, which this event woke. For another finished run this job's Result panel shows the file result.jsonl (result_file), the same records as CSV (result_csv), its details (result) and the first rows (result_preview); run_summary says why the run stopped and how complete it is. A run without records has no file."
+            }
+          },
+          "description": "The event is handled; for a finished run the records are result.jsonl from 'Get result' in this job."
+        }
+      ],
+      "groups": [],
+      "for_each": [],
+      "execution_graph": {
+        "schema_version": 1,
+        "entry": {
+          "kind": "step",
+          "id": "claim_event"
+        },
+        "edges": [
+          {
+            "source": {
+              "kind": "step",
+              "id": "claim_event"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "claimed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "claimed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "claimed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "not_ours"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "outcome": {
+              "name": "case",
+              "case_id": "run_completed"
+            },
+            "target": {
+              "kind": "step",
+              "id": "already_completed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "outcome": {
+              "name": "case",
+              "case_id": "mapping_required"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mapping_request"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "outcome": {
+              "name": "case",
+              "case_id": "problem"
+            },
+            "target": {
+              "kind": "step",
+              "id": "problem_summary"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "outcome": {
+              "name": "case",
+              "case_id": "run_failed"
+            },
+            "target": {
+              "kind": "step",
+              "id": "problem_summary"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "route_event"
+            },
+            "outcome": {
+              "name": "default"
+            },
+            "target": {
+              "kind": "step",
+              "id": "problem_summary"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "already_completed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "already_completed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "run_summary"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "run_summary"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "starter_fetches"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "already_processed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mark_processed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "already_processed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mark_processed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "mark_processed"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mark_completed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "mark_completed"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "mapping_request"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "request_open"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "request_open"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "repair_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "request_open"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_mapping"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "repair_passed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_passed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "activate_repair"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_passed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "report_failure"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "activate_repair"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "repair_conflict"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "report_failure"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "problem_summary"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "handled"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_conflict"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "report_conflict"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_conflict"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "report_conflict"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "processing_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "processing_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "repair_mapping"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "report_repair_error"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "activate_repair"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "report_repair_error"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "report_repair_error"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_after_error"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "complete_after_error"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "repair_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mark_processed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "processing_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "starter_fetches"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "complete_event"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "starter_fetches"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "already_processed"
+            },
+            "rework": false
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": {
+    "agents": [],
+    "skills": [],
+    "tools": [],
+    "child_workflows": [],
+    "published_blocks": [],
+    "extensions": [
+      {
+        "install_id": "flowsteward.web-scraper",
+        "extension_id": "flowsteward.web-scraper",
+        "display_name": "Web Scraper",
+        "required": true,
+        "sources": [
+          "claim_event.connector_id",
+          "run_summary.connector_id",
+          "get_result.connector_id",
+          "mark_processed.connector_id",
+          "mark_completed.connector_id",
+          "mapping_request.connector_id",
+          "repair_mapping.override.invoke_workflow.action",
+          "activate_repair.connector_id",
+          "report_failure.connector_id",
+          "problem_summary.connector_id",
+          "complete_event.connector_id",
+          "report_conflict.connector_id",
+          "report_repair_error.connector_id",
+          "complete_after_error.connector_id"
+        ],
+        "metadata": {
+          "dependency_kind": "extension_install",
+          "extension_id": "flowsteward.web-scraper",
+          "reason": "connector_install_id_missing",
+          "note": "Map to this account's install of the Web Scraper extension."
+        }
+      }
+    ],
+    "project_connections": [
+      {
+        "connection_ref": "scraper_profile",
+        "display_name": "Scraper profile",
+        "required": true,
+        "sources": [
+          "scraper_events.claim_event.connection_binding",
+          "scraper_events.run_summary.connection_binding",
+          "scraper_events.get_result.connection_binding",
+          "scraper_events.mark_processed.connection_binding",
+          "scraper_events.mark_completed.connection_binding",
+          "scraper_events.mapping_request.connection_binding",
+          "scraper_events.repair_mapping.override.invoke_workflow.connections",
+          "scraper_events.activate_repair.connection_binding",
+          "scraper_events.report_failure.connection_binding",
+          "scraper_events.problem_summary.connection_binding",
+          "scraper_events.complete_event.connection_binding",
+          "scraper_events.report_conflict.connection_binding",
+          "scraper_events.report_repair_error.connection_binding",
+          "scraper_events.complete_after_error.connection_binding"
+        ],
+        "metadata": {
+          "extension_id": "flowsteward.web-scraper",
+          "connection_type": "scraper_profile",
+          "note": "Map to the scraper_profile connection this workflow uses."
+        }
+      }
+    ]
+  },
+  "import_hints": {
+    "default_enabled": false,
+    "conflict_policy": "rename_workflow"
+  }
+}

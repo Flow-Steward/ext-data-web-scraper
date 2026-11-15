@@ -1,0 +1,13 @@
+component_id: run_missed
+type: grid
+title: Missed pages
+query_id: run_missed
+columns:
+  - {key: url, label: Page, type: text}
+  - {key: reason, label: Reason, type: text}
+  - {key: missing, label: Fields missing, type: text}
+  - {key: gaps, label: What went wrong, type: text}
+  - {key: key, label: Your key, type: text}
+empty_state:
+  title: No missed pages
+  description: Every page the run tried gave a record, or the run has not tried any yet.

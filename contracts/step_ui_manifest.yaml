@@ -1,0 +1,729 @@
+# Builder forms for the Web Scraper steps.
+forms:
+- operation_id: validate_config
+  title: Validate settings
+  section: Web Scraper · Configuration
+  fields:
+  - name: site_url
+    widget_type: text
+    label: Site URL
+    help_text: Start page of the site, e.g. https://www.example.com/. In url_list mode enter the site's home page; only the listed URLs are scraped.
+    placeholder: https://www.example.com/
+  - name: extraction_instructions
+    widget_type: textarea
+    label: What to extract
+    help_text: 'In words: which pages and which data, e.g. ''Product pages: name, price in EUR, article number, full description with the technical table, all images.'' Goes to the mapping agent.'
+  - name: max_records
+    widget_type: integer
+    label: Maximum records
+    help_text: 'Stop after this many records. Use 10 for a first trial run. Empty: no limit.'
+  - name: target_page_selector
+    widget_type: text
+    label: Product page selector (CSS)
+    help_text: 'A CSS selector found only on the pages you want as records (product pages): a class, id or attribute, e.g. .product-detail, #product or [itemtype$=''Product'']. Other pages are still loaded for their links but never extracted (pages you list in url_list mode always are), and the AI is told to use it in the mapping. Empty: no selector; the pages are told apart by URL and structured data.'
+  - name: url_include
+    widget_type: json
+    label: Only these URLs (regex)
+    help_text: 'Only URLs matching one of these regular expressions are loaded, e.g. ["/product/"]. Empty: every URL of the site.'
+  - name: url_exclude
+    widget_type: json
+    label: Never these URLs (regex)
+    help_text: 'URLs matching one of these regular expressions are never loaded, e.g. ["/blog/", "/about", "\\?(sort|page)="]. Empty: none excluded.'
+  - name: discovery_mode
+    widget_type: select
+    label: Discovery
+    help_text: 'How pages are found. auto lets the analysis decide; sitemap when the sitemap is trusted; crawl follows links when it is outdated; url_list scrapes exactly the given URLs. Empty: auto.'
+    options:
+    - label: Auto
+      value: auto
+    - label: Sitemap
+      value: sitemap
+    - label: Crawl
+      value: crawl
+    - label: Sitemap and crawl
+      value: sitemap_and_crawl
+    - label: Url list
+      value: url_list
+  - name: debug
+    widget_type: boolean
+    label: Debug mode
+    help_text: 'On: the service keeps a screenshot of each protection check and a verbose job log for this run. Leave it off for normal runs. Empty: off.'
+  - name: crawl_include
+    widget_type: json
+    label: 'Where to walk (regex)'
+    help_text: 'Links are followed only on pages whose URL matches one of these regular expressions, e.g. ["/lighting/"] to stay in a category; the start page always. Product pages linked from there are still fetched. Empty: the whole site.'
+  - name: stay_in_section
+    widget_type: boolean
+    label: 'Stay inside the start page''s section'
+    help_text: 'On: walk only the start page''s URL and everything below its path (its pagination included); added to Where to walk. No effect on a site''s home page. Empty: off.'
+  - name: ai_choose_fields
+    widget_type: boolean
+    label: 'Let the AI choose the fields'
+    help_text: 'On: the AI adds the fields the sample pages really carry (beyond Fields), guided by Fields hint; a specification table becomes one field. Empty: off - only the listed fields.'
+  - name: fields_hint
+    widget_type: text
+    label: 'Fields hint'
+    help_text: 'For Let the AI choose the fields: what kind of product and which data, e.g. ''wine: vintage, type, bottle size, taste''. Empty: no hint.'
+  - name: fields
+    widget_type: json
+    label: Fields
+    help_text: 'Field names as a JSON list, e.g. ["title", "price", "currency"]. Empty: title, description, price, currency, part_number, condition.'
+  - name: required_fields
+    widget_type: json
+    label: Required fields
+    help_text: 'Fields a record must have, e.g. ["title", "price"]. Empty: title.'
+  - name: urls
+    widget_type: json
+    label: URLs (url_list)
+    help_text: 'In url_list mode: the pages to scrape, as a JSON list.'
+  - name: urls_file
+    widget_type: artifact_picker
+    label: URL file (url_list)
+    help_text: 'In url_list mode: a CSV with a ''url'' column and an optional ''key'' column (your article number, copied into each record as source_key), or one URL per line.'
+  - name: sitemap_url
+    widget_type: text
+    label: Sitemap URL
+    help_text: 'The sitemap address when it is not in robots.txt or at /sitemap.xml. Empty: found automatically.'
+  - name: max_pages
+    widget_type: integer
+    label: Maximum pages
+    help_text: 'Pages to load at most, listing pages included. Empty: the profile''s default, normally 10000.'
+  - name: single_page
+    widget_type: boolean
+    label: Only the start page
+    help_text: 'On: scrape only the Site URL, find no other pages. Empty: off.'
+  - name: fetch_mode
+    widget_type: select
+    label: Fetch mode
+    help_text: 'http loads pages without a browser (fast); browser renders them; auto chooses per page. Empty: the profile''s default, normally auto.'
+    options:
+    - label: Auto
+      value: auto
+    - label: Http
+      value: http
+    - label: Browser
+      value: browser
+  - name: browser
+    widget_type: select
+    label: Browser
+    help_text: 'Browser for pages that need one. Empty: the profile''s default, normally Camoufox.'
+    options:
+    - label: Auto
+      value: auto
+    - label: Camoufox
+      value: camoufox
+    - label: Chromium
+      value: chromium
+  - name: browser_os
+    widget_type: select
+    label: Browser OS
+    help_text: 'Which OS the browser claims. host (the default) is the scraper machine''s own OS (Linux in the service image), which protection checks such as Cloudflare usually accept; windows or macos on a Linux service is usually refused by them. linux is the same as host there. Camoufox only. Empty: host.'
+    options:
+    - label: Windows
+      value: windows
+    - label: Macos
+      value: macos
+    - label: Linux
+      value: linux
+    - label: Host
+      value: host
+  - name: canvas_noise
+    widget_type: select
+    label: Canvas noise
+    help_text: 'Whether the browser covers canvas and WebGL readback with random data: auto (the default) only when Browser OS claims another OS than the machine''s own, off never, on always. With the default Browser OS (host) the canvas reads back exactly. Camoufox only. Empty: auto.'
+    options:
+    - label: Auto
+      value: auto
+    - label: Off
+      value: off
+    - label: On
+      value: on
+  - name: use_proxy_tiers
+    widget_type: json
+    label: Proxy tiers
+    help_text: 'Which proxy tiers of the profile to use, e.g. [1, 2]. Empty: every tier the profile has.'
+  - name: challenge_click
+    widget_type: boolean
+    label: Allow the checkbox click
+    help_text: 'On: the scraper may click a protection checkbox (only if the service allows it; needs a sticky proxy). Empty: the profile''s default, normally off.'
+  - name: use_solver
+    widget_type: boolean
+    label: Allow the challenge solver
+    help_text: 'On: the scraper may use the profile''s paid challenge solver (only if the service allows it). Empty: the profile''s default, normally off.'
+  - name: politeness
+    widget_type: select
+    label: Politeness
+    help_text: 'How gently the crawl treats the site: gentle (pause 5-10 s, 1 page at a time, 10 requests a minute, page timeout 120 s), normal (2-5 s, 2 at a time, 30/min, 60 s) or fast (0.5-1.5 s, 4 at a time, 120/min, 30 s). Shortest/Longest pause, Pages at once, Requests per minute and Page timeout override it when set here or in the profile''s defaults; robots.txt Crawl-delay is always respected. Empty: normal.'
+    options:
+    - label: Gentle
+      value: gentle
+    - label: Normal
+      value: normal
+    - label: Fast
+      value: fast
+  - name: delay_min_seconds
+    widget_type: number
+    label: Shortest pause (s)
+    help_text: 'Shortest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 2).'
+  - name: delay_max_seconds
+    widget_type: number
+    label: Longest pause (s)
+    help_text: 'Longest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 5).'
+  - name: max_concurrency
+    widget_type: integer
+    label: Pages at once
+    help_text: 'Pages loaded at the same time; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 2).'
+  - name: max_requests_per_minute
+    widget_type: integer
+    label: Requests per minute
+    help_text: 'Requests per minute at most; overrides Politeness. Empty: the profile''s default if it has one, else Politeness (normal: 30).'
+  - name: page_timeout_seconds
+    widget_type: integer
+    label: Page timeout (s)
+    help_text: 'How long one page may take to load, in seconds (10-300), for the crawl, the analysis and the samples; a slower page is retried, then counted as not loaded. Empty: from Politeness (normal: 60).'
+  - name: extraction_mode
+    widget_type: select
+    label: Extraction mode
+    help_text: 'Where values may come from: structured_data uses only JSON-LD, selectors only CSS and meta tags, auto both. Empty: auto.'
+    options:
+    - label: Auto
+      value: auto
+    - label: Structured data
+      value: structured_data
+    - label: Selectors
+      value: selectors
+  - name: structured_data_types
+    widget_type: json
+    label: Structured data types
+    help_text: 'schema.org types that mark a product page, e.g. ["Product"]. Empty: Product, Offer and AggregateOffer.'
+  - name: wait_after_load_ms
+    widget_type: integer
+    label: Extra wait after load (ms)
+    help_text: 'Extra wait after a browser page has loaded, in milliseconds. Empty: the profile''s default, normally 0.'
+  - name: wait_for_selector_ms
+    widget_type: integer
+    label: Wait for the selector (ms)
+    help_text: 'How long a browser page waits for the product page selector, in milliseconds. Empty: the profile''s default, normally 10000.'
+  - name: headers
+    widget_type: json
+    label: Extra HTTP headers
+    help_text: 'Extra request headers, e.g. {"Accept-Language": "de-DE"}. No credentials or cookies. Empty: none.'
+  - name: respect_robots
+    widget_type: boolean
+    label: Respect robots.txt
+    help_text: 'Off: ignore robots.txt (only if the service allows it). Empty: the profile''s default, normally on.'
+  - name: rebuild_mapping
+    widget_type: boolean
+    label: Build a new mapping
+    help_text: 'On: the AI builds a new mapping even when the stored one still passes. Empty: off.'
+  - name: link_rules_off
+    widget_type: json
+    label: Links not to skip
+    help_text: "Rules of links the crawl skips that you switch off for this run, by name: scheme, messenger_social, sensitive_path, action_params, file_extension, nofollow, facet_params, trap_budget, dynamic_params, canonical. Example: [\"facet_params\"] when a shop's products are reached only through its filters. Guide: Links the scraper skips. Empty: every rule on."
+  - name: trap_pattern_budget
+    widget_type: integer
+    label: Trap budget (pages)
+    help_text: "A URL pattern stops being followed after this many pages in a row without a product page (crawler traps such as calendars and endless filters). 0: off. Empty: 100."
+  - name: when_site_busy
+    widget_type: select
+    label: When the site is busy
+    help_text: 'What happens when a run of the same site is still going on: skip (this start is skipped and the job ends ''Skipped'', not failed; good for schedules) or queue (the run waits and starts when the other one ends). Empty: skip.'
+    options:
+    - label: Skip this start
+      value: skip
+    - label: Queue it
+      value: queue
+  - name: site_settings
+    widget_type: json
+    label: Site settings (old copies)
+    help_text: Only for a copy of the template imported before 0.1.9 - the state of its 'Site settings' step. The run inputs win over it.
+- operation_id: analyze_site
+  title: Analyze site
+  section: Web Scraper · Configuration
+  fields:
+  - name: config
+    widget_type: json
+    label: Merged configuration
+    required: true
+    help_text: The 'config' output of 'Validate settings' (all settings merged and checked).
+- operation_id: fetch_samples
+  title: Fetch samples
+  section: Web Scraper · Mapping
+  fields:
+  - name: config
+    widget_type: json
+    label: Merged configuration
+    required: true
+    help_text: The 'config' output of 'Validate settings' (all settings merged and checked).
+  - name: urls
+    widget_type: json
+    label: Sample URLs
+    help_text: Fetch exactly these pages instead of discovering target pages (at most 50).
+  - name: template_id
+    widget_type: text
+    label: Template
+    help_text: Only pages matched by this template's active mapping.
+  - name: analysis_protection_summary
+    widget_type: textarea
+    label: Protection seen by the analysis
+    help_text: Optional. The 'protection_summary' output of 'Analyze site'; a timeout then names the protection as the likely cause.
+  - name: analysis_protection_not_passed
+    widget_type: boolean
+    label: Analysis did not pass the protection
+    help_text: Optional. The 'protection_not_passed' output of 'Analyze site'.
+- operation_id: test_mapping
+  title: Test mapping
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    required: true
+    help_text: Site key of the target site (host without www.), from 'Validate settings'.
+    placeholder: lumen-shop.example
+  - name: mappings
+    widget_type: json
+    label: Mappings
+    required: false
+    help_text: One mapping per page template (mapping.schema.json).
+  - name: mappings_json
+    widget_type: textarea
+    label: Mappings as JSON text
+    help_text: The same list as JSON text; used instead of Mappings when given.
+  - name: sample_ids
+    widget_type: json
+    label: Sample ids
+    required: true
+    help_text: From 'Fetch samples' or a mapping request.
+  - name: required_fill_threshold
+    widget_type: number
+    label: Fill threshold
+    help_text: Share of samples each required field must fill (default 0.9).
+  - name: required_fields
+    widget_type: json
+    label: Required fields
+    help_text: Required in addition to the fields marked required in the mapping.
+  - name: extraction_mode
+    widget_type: select
+    label: Extraction mode
+    help_text: auto, structured_data or selectors.
+    options:
+    - label: Auto
+      value: auto
+    - label: Structured data
+      value: structured_data
+    - label: Selectors
+      value: selectors
+  - name: require_all_samples_matched
+    widget_type: boolean
+    label: Every sample must match
+    help_text: Default true.
+  - name: attempt
+    widget_type: integer
+    label: Attempts so far
+    help_text: Used by the build loop; leave empty elsewhere.
+  - name: max_refinements
+    widget_type: integer
+    label: Refinements allowed
+    help_text: Default 2.
+  - name: target_page_selector
+    widget_type: text
+    label: Product page selector
+    help_text: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: variant_sample_ids
+    widget_type: json
+    label: Samples with variants
+    help_text: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+- operation_id: get_mappings
+  title: Get mappings
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    required: true
+    help_text: Site key of the target site (host without www.), from 'Validate settings'.
+    placeholder: lumen-shop.example
+  - name: template_id
+    widget_type: text
+    label: Template
+    help_text: Only this template.
+- operation_id: activate_mapping
+  title: Activate mapping
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    required: true
+    help_text: Site key of the target site (host without www.), from 'Validate settings'.
+    placeholder: lumen-shop.example
+  - name: mappings
+    widget_type: json
+    label: Mappings
+    required: true
+    help_text: The tested mappings.
+  - name: expected_versions
+    widget_type: json
+    label: Expected versions
+    help_text: 'template_id -> version the mapping was built on (from ''Get mappings'' or the mapping
+      request). Missing: 0 (new template).'
+  - name: expected_version
+    widget_type: integer
+    label: Expected version
+    help_text: For a single mapping instead of expected_versions.
+  - name: run_id
+    widget_type: text
+    label: Run id
+    help_text: Recorded as the origin of the version.
+  - name: mapping_request_id
+    widget_type: text
+    label: Mapping request id
+    help_text: Recorded as the origin of the version.
+  - name: note
+    widget_type: text
+    label: Note
+    help_text: Recorded with the version.
+  - name: fail_on_conflict
+    widget_type: boolean
+    label: Fail on conflict
+    help_text: 'True: a version conflict fails the step (Scrape a site). False: it is reported (Scraper
+      events).'
+- operation_id: export_mappings
+  title: Export mappings
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    help_text: Only this site.
+- operation_id: import_mappings
+  title: Import mappings
+  section: Web Scraper · Mapping
+  fields:
+  - name: export
+    widget_type: json
+    label: Export
+    required: true
+    help_text: The output of 'Export mappings'.
+- operation_id: start_run
+  title: Start run
+  section: Web Scraper · Runs
+  fields:
+  - name: config
+    widget_type: json
+    label: Merged configuration
+    required: true
+    help_text: The 'config' output of 'Validate settings' (all settings merged and checked).
+  - name: skipped_start_succeeds
+    widget_type: boolean
+    label: A skipped start succeeds
+    help_text: 'On: when a run of this site is still going on and the start is skipped, this step ends successfully with skipped true and the reason instead of failing with site_busy. Empty: off.'
+- operation_id: stop_run
+  title: Stop run
+  section: Web Scraper · Runs
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The scraper run id (run_...).
+    placeholder: run_01...
+  - name: note
+    widget_type: text
+    label: Note
+    help_text: Why the run was stopped.
+- operation_id: resume_run
+  title: Resume run
+  section: Web Scraper · Runs
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The scraper run id (run_...).
+    placeholder: run_01...
+- operation_id: get_run_summary
+  title: Get run summary
+  section: Web Scraper · Runs
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The scraper run id (run_...).
+    placeholder: run_01...
+  - name: require_completed
+    widget_type: boolean
+    label: Fail unless completed
+    help_text: 'True: the step fails with the run''s summary when the run is not completed.'
+- operation_id: claim_event
+  title: Claim event
+  section: Web Scraper · Events
+  fields:
+  - name: event_id
+    widget_type: text
+    label: Event id
+    required: true
+    help_text: The event id from the webhook input event_id.
+- operation_id: mark_event_stage
+  title: Mark event stage
+  section: Web Scraper · Events
+  fields:
+  - name: event_id
+    widget_type: text
+    label: Event id
+    required: true
+    help_text: The event id from the webhook input event_id.
+  - name: claim_id
+    widget_type: text
+    label: Claim id
+    required: true
+    help_text: The claim_id output of 'Claim event'.
+  - name: stage
+    widget_type: select
+    label: Stage
+    required: true
+    help_text: processed or completed.
+    options:
+    - label: Processed
+      value: processed
+    - label: Completed
+      value: completed
+- operation_id: complete_event
+  title: Complete event
+  section: Web Scraper · Events
+  fields:
+  - name: event_id
+    widget_type: text
+    label: Event id
+    required: true
+    help_text: The event id from the webhook input event_id.
+  - name: claim_id
+    widget_type: text
+    label: Claim id
+    required: true
+    help_text: The claim_id output of 'Claim event'.
+- operation_id: get_mapping_request
+  title: Get mapping request
+  section: Web Scraper · Events
+  fields:
+  - name: mapping_request_id
+    widget_type: text
+    label: Mapping request id
+    required: true
+    help_text: The resource_id of a mapping_required event.
+- operation_id: fail_mapping_request
+  title: Report mapping failure
+  section: Web Scraper · Events
+  fields:
+  - name: mapping_request_id
+    widget_type: text
+    label: Mapping request id
+    required: true
+  - name: failure_reason
+    widget_type: textarea
+    label: Reason
+    help_text: Why no mapping passed.
+  - name: attempts
+    widget_type: integer
+    label: Attempts
+    help_text: Generations tried.
+- operation_id: get_result
+  title: Get result
+  section: Web Scraper · Result
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The scraper run id (run_...).
+    placeholder: run_01...
+- operation_id: build_mapping
+  title: Build mapping
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    required: true
+    help_text: Site key of the target site (host without www.), from 'Validate settings'.
+    placeholder: lumen-shop.example
+  - name: sample_ids
+    widget_type: json
+    label: Sample ids
+    required: true
+    help_text: From 'Fetch samples' or the mapping request.
+  - name: samples
+    widget_type: json
+    label: Samples
+    required: true
+    help_text: Distilled pages from 'Fetch samples' or the mapping request.
+  - name: extraction_instructions
+    widget_type: textarea
+    label: What to extract
+    help_text: The user's instructions.
+  - name: fields
+    widget_type: json
+    label: Fields
+    help_text: Fields to extract.
+  - name: required_fields
+    widget_type: json
+    label: Required fields
+    help_text: Fields a record must have.
+  - name: required_fill_threshold
+    widget_type: number
+    label: Fill threshold
+    help_text: Default 0.9.
+  - name: extraction_mode
+    widget_type: select
+    label: Extraction mode
+    help_text: auto, structured_data or selectors.
+    options:
+    - label: Auto
+      value: auto
+    - label: Structured data
+      value: structured_data
+    - label: Selectors
+      value: selectors
+  - name: max_refinements
+    widget_type: integer
+    label: Refinements
+    help_text: Refinements after the first generation (default 2).
+  - name: previous_mappings
+    widget_type: json
+    label: Previous mappings
+    help_text: 'For a repair: the active mapping that broke.'
+  - name: previous_failures
+    widget_type: json
+    label: Previous failures
+    help_text: 'For a repair: fill rates reported by the service.'
+  - name: suggested_template_id
+    widget_type: text
+    label: Suggested template id
+    help_text: For a new template.
+  - name: target_page_selector
+    widget_type: text
+    label: Product page selector
+    help_text: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: variant_sample_ids
+    widget_type: json
+    label: Samples with variants
+    help_text: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+  - name: ai_choose_fields
+    widget_type: boolean
+    label: Let the AI choose the fields
+    help_text: "On: the agent adds the fields the samples really carry, beyond Fields."
+  - name: fields_hint
+    widget_type: text
+    label: Fields hint
+    help_text: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+- operation_id: write_samples_file
+  title: Write samples file
+  section: Web Scraper · Mapping
+  fields:
+  - name: site
+    widget_type: text
+    label: Site
+    help_text: Site key, shown at the top of the file.
+  - name: samples
+    widget_type: json
+    label: Samples
+    required: true
+    help_text: Distilled pages from 'Fetch samples' or the mapping request.
+  - name: extraction_instructions
+    widget_type: textarea
+    label: What to extract
+  - name: fields
+    widget_type: json
+    label: Fields
+  - name: required_fields
+    widget_type: json
+    label: Required fields
+  - name: suggested_template_id
+    widget_type: text
+    label: Suggested template id
+  - name: previous_mappings
+    widget_type: json
+    label: Previous candidate
+  - name: failures
+    widget_type: json
+    label: Failures
+  - name: service_failures
+    widget_type: json
+    label: Service measurements
+  - name: attempt
+    widget_type: number
+    label: Attempt
+  - name: target_page_selector
+    widget_type: text
+    label: Product page selector
+    help_text: The operator's product page selector (target_page_selector). The AI is told to put it into every template's match.selector; the test warns when a template lacks it.
+  - name: ai_choose_fields
+    widget_type: boolean
+    label: Let the AI choose the fields
+    help_text: "On: the agent adds the fields the samples really carry, beyond Fields."
+  - name: fields_hint
+    widget_type: text
+    label: Fields hint
+    help_text: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+- operation_id: service_storage
+  title: Service storage
+  section: Web Scraper · Service
+  fields: []
+- operation_id: clean_up_storage
+  title: Clean up service storage
+  section: Web Scraper · Service
+  fields:
+  - name: dry_run
+    widget_type: boolean
+    label: Dry run
+    help_text: 'On: nothing is removed; the answer says what would be removed and how much space it frees. Off: remove. Empty: on.'
+  - name: working_files_older_than_days
+    widget_type: integer
+    label: Working files older than (days)
+    help_text: 'The pages finished runs loaded, for runs that ended at least this many days ago. 0: every finished run. The run and its result stay. Empty: not touched.'
+  - name: result_files_older_than_days
+    widget_type: integer
+    label: Result files older than (days)
+    help_text: 'Result files of runs that ended at least this many days ago. The run stays, its result is gone from the service. Empty: not touched.'
+  - name: include_unfetched_results
+    widget_type: boolean
+    label: Include results Flow Steward has not fetched
+    help_text: 'On: also remove result files (and run records) whose result Flow Steward has not stored yet. Off or empty: those runs are kept.'
+  - name: run_records_older_than_days
+    widget_type: integer
+    label: Run records older than (days)
+    help_text: 'Whole finished runs that ended at least this many days ago: records, events, working files and result. The run is gone from the Runs page. Empty: not touched.'
+  - name: samples_older_than_hours
+    widget_type: integer
+    label: Samples and screenshots older than (hours)
+    help_text: 'Sample pages and protection screenshots last written at least this many hours ago. 0: all. Empty: not touched.'
+  - name: compact_database
+    widget_type: boolean
+    label: Compact the database
+    help_text: 'On: empty the database''s write-ahead log and compact the file; the file is compacted only when no run is active. Off or empty: not compacted.'
+- operation_id: get_result_csv
+  title: Get result CSV
+  section: Web Scraper · Result
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The scraper run id (run_...).
+    placeholder: run_01...
+- operation_id: recollect_run
+  title: Re-collect missed pages
+  section: Web Scraper · Runs
+  fields:
+  - name: run_id
+    widget_type: text
+    label: Run id
+    required: true
+    help_text: The finished run whose missed pages are collected again (run_...).
+    placeholder: run_01...
+  - name: reasons
+    widget_type: json
+    label: Reasons
+    help_text: 'Which missed pages, by their unextracted reason: fetch_failed, blocked, incomplete, no_template, template_failed, stopped, not_found, robots_disallowed, private_address_refused. Empty: fetch_failed, blocked, incomplete, no_template, template_failed and stopped.'

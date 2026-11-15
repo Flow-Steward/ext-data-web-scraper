@@ -1,0 +1,20 @@
+component_id: setup_overview
+type: markdown
+title: About the Web Scraper
+content: |
+  The Web Scraper extracts records (for example products with name, price and article
+  number) from websites into **two files** your workflows process: `result.jsonl` (JSON
+  Lines) and `result.csv`.
+
+  - A separate **scraper service** (a Docker container you run) loads the pages and
+    extracts the records. It respects robots.txt by default, does not log in to sites and
+    cannot promise to get past every bot protection.
+  - **Scrape a site** (a read-only workflow, or a template to import) analyses the site,
+    has AI write the extraction mapping, tests it, starts the crawl, waits for it and
+    returns the files in its own job. Your workflows can call it with Invoke.
+  - **Scraper events** runs when the service reports back (a signed webhook): it wakes the
+    waiting Scrape a site job and repairs a mapping that stopped matching.
+  - Set up the connection on **Profiles**, follow runs on **Runs** and **Run detail**.
+
+  Only scrape sites whose terms allow it. Everything else — setup checklist, every run
+  form field, troubleshooting — is on the **Guide** page.

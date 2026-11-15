@@ -1,0 +1,4 @@
+component_id: run_report
+type: markdown
+title: Run
+query_id: run_report

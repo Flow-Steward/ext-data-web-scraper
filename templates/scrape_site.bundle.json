@@ -1,0 +1,1862 @@
+{
+  "schema_version": "platform.workflow_bundle.v2",
+  "kind": "workflow_bundle",
+  "metadata": {
+    "source": "flowsteward.web-scraper",
+    "source_version": "0.1.26",
+    "template_id": "scrape_a_site",
+    "description": "Template 'Scrape a site' of the Web Scraper extension.",
+    "contains_secrets": false,
+    "contains_connection_ids": false
+  },
+  "workflows": [
+    {
+      "workflow_id": "scrape_a_site",
+      "version": "0.1.26",
+      "display_name": "Scrape a site",
+      "description": "Validates the settings, analyses the site, builds or reuses the extraction mapping (AI), lets you review it, activates it, starts the crawl on the Web Scraper service and waits for it to end (Flow Steward 'Wait for an event'). Then it stores the result as result.jsonl and result.csv and returns them with a preview and the run summary, also to a workflow that calls it with Invoke. A start while a run of the same site is still going on ends 'Skipped' (or waits, with When the site is busy: queue).",
+      "enabled": false,
+      "trigger": {},
+      "settings": {
+        "callable": {
+          "enabled": true,
+          "trigger_channels": [
+            "ui",
+            "api",
+            "mcp",
+            "schedule",
+            "parent_workflow"
+          ],
+          "input_mode": "fields",
+          "strict_inputs": true,
+          "expected_inputs": [
+            {
+              "name": "site_url",
+              "label": "Site URL",
+              "type": "string",
+              "required": true,
+              "description": "Start page of the site, e.g. https://www.example.com/. In url_list mode enter the site's home page; only the listed URLs are scraped."
+            },
+            {
+              "name": "extraction_instructions",
+              "label": "What to extract",
+              "type": "paragraph",
+              "required": true,
+              "description": "In words: which pages and which data, e.g. 'Product pages: name, price in EUR, article number, full description with the technical table, all images.' Goes to the mapping agent."
+            },
+            {
+              "name": "run_name",
+              "label": "Run name",
+              "type": "string",
+              "required": false,
+              "description": "A name for this run, e.g. 'Supplier A weekly': Jobs shows it before the site URL. Not sent to the scraper. Empty: the site URL alone."
+            },
+            {
+              "name": "max_records",
+              "label": "Maximum records",
+              "type": "number",
+              "required": false,
+              "description": "Stop after this many records. Use 10 for a first trial run. Empty: no limit."
+            },
+            {
+              "name": "target_page_selector",
+              "label": "Product page selector (CSS)",
+              "type": "string",
+              "required": false,
+              "description": "A CSS selector found only on the pages you want as records (product pages): a class, id or attribute, e.g. .product-detail, #product or [itemtype$='Product']. Other pages are still loaded for their links but never extracted (pages you list in url_list mode always are), and the AI is told to use it in the mapping. Empty: no selector; the pages are told apart by URL and structured data."
+            },
+            {
+              "name": "url_include",
+              "label": "Extract only URLs matching (regex)",
+              "type": "array",
+              "required": false,
+              "description": "What to extract: only pages whose full URL matches one of these regular expressions become records, e.g. [\"/product/\"]; other pages are still walked for links. This is a filter, not a list of pages: in url_list mode put the pages into 'Pages to scrape (url_list)'. Empty: every URL."
+            },
+            {
+              "name": "url_exclude",
+              "label": "Never these URLs (regex)",
+              "type": "array",
+              "required": false,
+              "description": "URLs matching one of these regular expressions are never loaded, e.g. [\"/blog/\", \"/about\", \"\\\\?(sort|page)=\"]. Empty: none excluded."
+            },
+            {
+              "name": "discovery_mode",
+              "label": "Discovery",
+              "type": "select",
+              "required": false,
+              "options": [
+                "auto",
+                "sitemap",
+                "crawl",
+                "sitemap_and_crawl",
+                "url_list"
+              ],
+              "description": "How pages are found. auto lets the analysis decide; sitemap when the sitemap is trusted; crawl follows links when it is outdated; url_list scrapes exactly the given URLs. Empty: auto."
+            },
+            {
+              "name": "debug",
+              "label": "Debug mode",
+              "type": "boolean",
+              "required": false,
+              "description": "On: the service keeps a screenshot of each protection check and a verbose job log for this run. Leave it off for normal runs. Empty: off."
+            },
+            {
+              "name": "crawl_include",
+              "label": "Where to walk (regex)",
+              "type": "array",
+              "required": false,
+              "description": "Links are followed only on pages whose URL matches one of these regular expressions, e.g. [\"/lighting/\"] to stay in a category; the start page always. Product pages linked from there are still fetched. Empty: the whole site."
+            },
+            {
+              "name": "stay_in_section",
+              "label": "Stay inside the start page's section",
+              "type": "boolean",
+              "required": false,
+              "description": "On: walk only the start page's URL and everything below its path (its pagination included); added to Where to walk. No effect on a site's home page. Empty: off."
+            },
+            {
+              "name": "ai_choose_fields",
+              "label": "Let the AI choose the fields",
+              "type": "boolean",
+              "required": false,
+              "description": "On: the AI adds the fields the sample pages really carry (beyond Fields), guided by Fields hint; a specification table becomes one field. Empty: off - only the listed fields."
+            },
+            {
+              "name": "fields_hint",
+              "label": "Fields hint",
+              "type": "string",
+              "required": false,
+              "description": "For Let the AI choose the fields: what kind of product and which data, e.g. 'wine: vintage, type, bottle size, taste'. Empty: no hint."
+            },
+            {
+              "name": "fields",
+              "label": "Fields",
+              "type": "array",
+              "required": false,
+              "description": "Field names as a JSON list, e.g. [\"title\", \"price\", \"currency\"]. Empty: title, description, price, currency, part_number, condition."
+            },
+            {
+              "name": "required_fields",
+              "label": "Required fields",
+              "type": "array",
+              "required": false,
+              "description": "Fields a record must have, e.g. [\"title\", \"price\"]. Empty: title."
+            },
+            {
+              "name": "urls",
+              "label": "Pages to scrape (url_list)",
+              "type": "array",
+              "required": false,
+              "description": "In url_list mode: the exact pages to scrape, as a JSON list of full URLs, e.g. [\"https://shop.example/products/red-shirt\"]. url_list mode needs this list or a URL file."
+            },
+            {
+              "name": "urls_file",
+              "label": "URL file (url_list)",
+              "type": "file",
+              "required": false,
+              "description": "In url_list mode: a CSV with a 'url' column and an optional 'key' column (your article number, copied into each record as source_key), or one URL per line."
+            },
+            {
+              "name": "sitemap_url",
+              "label": "Sitemap URL",
+              "type": "string",
+              "required": false,
+              "description": "The sitemap address when it is not in robots.txt or at /sitemap.xml. Empty: found automatically."
+            },
+            {
+              "name": "max_pages",
+              "label": "Maximum pages",
+              "type": "number",
+              "required": false,
+              "description": "Pages to load at most, listing pages included. Empty: the profile's default, normally 10000."
+            },
+            {
+              "name": "single_page",
+              "label": "Only the start page",
+              "type": "boolean",
+              "required": false,
+              "description": "On: scrape only the Site URL, find no other pages. Empty: off."
+            },
+            {
+              "name": "fetch_mode",
+              "label": "Fetch mode",
+              "type": "select",
+              "required": false,
+              "options": [
+                "auto",
+                "http",
+                "browser"
+              ],
+              "description": "http loads pages without a browser (fast); browser renders them; auto chooses per page. Empty: the profile's default, normally auto."
+            },
+            {
+              "name": "browser",
+              "label": "Browser",
+              "type": "select",
+              "required": false,
+              "options": [
+                "auto",
+                "camoufox",
+                "chromium"
+              ],
+              "description": "Browser for pages that need one. Empty: the profile's default, normally Camoufox."
+            },
+            {
+              "name": "browser_os",
+              "label": "Browser OS",
+              "type": "select",
+              "required": false,
+              "options": [
+                "windows",
+                "macos",
+                "linux",
+                "host"
+              ],
+              "description": "Which OS the browser claims. host (the default) is the scraper machine's own OS (Linux in the service image), which protection checks such as Cloudflare usually accept; windows or macos on a Linux service is usually refused by them. linux is the same as host there. Camoufox only. Empty: host."
+            },
+            {
+              "name": "canvas_noise",
+              "label": "Canvas noise",
+              "type": "select",
+              "required": false,
+              "options": [
+                "auto",
+                "off",
+                "on"
+              ],
+              "description": "Whether the browser covers canvas and WebGL readback with random data: auto (the default) only when Browser OS claims another OS than the machine's own, off never, on always. With the default Browser OS (host) the canvas reads back exactly. Camoufox only. Empty: auto."
+            },
+            {
+              "name": "use_proxy_tiers",
+              "label": "Proxy tiers",
+              "type": "array",
+              "required": false,
+              "description": "Which proxy tiers of the profile to use, e.g. [1, 2]. Empty: every tier the profile has."
+            },
+            {
+              "name": "challenge_click",
+              "label": "Allow the checkbox click",
+              "type": "boolean",
+              "required": false,
+              "description": "On: the scraper may click a protection checkbox (only if the service allows it; needs a sticky proxy). Empty: the profile's default, normally off."
+            },
+            {
+              "name": "use_solver",
+              "label": "Allow the challenge solver",
+              "type": "boolean",
+              "required": false,
+              "description": "On: the scraper may use the profile's paid challenge solver (only if the service allows it). Empty: the profile's default, normally off."
+            },
+            {
+              "name": "politeness",
+              "label": "Politeness",
+              "type": "select",
+              "required": false,
+              "options": [
+                "gentle",
+                "normal",
+                "fast"
+              ],
+              "description": "How gently the crawl treats the site. gentle: pause 5-10 s, 1 page at a time, 10 requests a minute, page timeout 120 s. normal: 2-5 s, 2 at a time, 30/min, 60 s. fast: 0.5-1.5 s, 4 at a time, 120/min, 30 s. Shortest/Longest pause, Pages at once, Requests per minute and Page timeout override it when set here or in the profile's defaults; robots.txt Crawl-delay is always respected. Empty: normal."
+            },
+            {
+              "name": "delay_min_seconds",
+              "label": "Shortest pause (s)",
+              "type": "number",
+              "required": false,
+              "description": "Shortest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile's default if it has one, else Politeness (normal: 2)."
+            },
+            {
+              "name": "delay_max_seconds",
+              "label": "Longest pause (s)",
+              "type": "number",
+              "required": false,
+              "description": "Longest random pause between two requests to the site, in seconds; overrides Politeness. Empty: the profile's default if it has one, else Politeness (normal: 5)."
+            },
+            {
+              "name": "max_concurrency",
+              "label": "Pages at once",
+              "type": "number",
+              "required": false,
+              "description": "Pages loaded at the same time; overrides Politeness. Empty: the profile's default if it has one, else Politeness (normal: 2)."
+            },
+            {
+              "name": "max_requests_per_minute",
+              "label": "Requests per minute",
+              "type": "number",
+              "required": false,
+              "description": "Requests per minute at most; overrides Politeness. Empty: the profile's default if it has one, else Politeness (normal: 30)."
+            },
+            {
+              "name": "page_timeout_seconds",
+              "label": "Page timeout (s)",
+              "type": "number",
+              "required": false,
+              "description": "How long one page may take to load, in seconds (10-300), for the crawl, the analysis and the samples; a slower page is retried, then counted as not loaded. Use 120 or more for a slow site. Empty: from Politeness (normal: 60)."
+            },
+            {
+              "name": "extraction_mode",
+              "label": "Extraction mode",
+              "type": "select",
+              "required": false,
+              "options": [
+                "auto",
+                "structured_data",
+                "selectors"
+              ],
+              "description": "Where values may come from: structured_data uses only JSON-LD, selectors only CSS and meta tags, auto both. Empty: auto."
+            },
+            {
+              "name": "structured_data_types",
+              "label": "Structured data types",
+              "type": "array",
+              "required": false,
+              "description": "schema.org types that mark a product page, e.g. [\"Product\"]. Empty: Product, Offer and AggregateOffer."
+            },
+            {
+              "name": "wait_after_load_ms",
+              "label": "Extra wait after load (ms)",
+              "type": "number",
+              "required": false,
+              "description": "Extra wait after a browser page has loaded, in milliseconds. Empty: the profile's default, normally 0."
+            },
+            {
+              "name": "wait_for_selector_ms",
+              "label": "Wait for the selector (ms)",
+              "type": "number",
+              "required": false,
+              "description": "How long a browser page waits for the product page selector, in milliseconds. Empty: the profile's default, normally 10000."
+            },
+            {
+              "name": "headers",
+              "label": "Extra HTTP headers",
+              "type": "object",
+              "required": false,
+              "description": "Extra request headers, e.g. {\"Accept-Language\": \"de-DE\"}. No credentials or cookies. Empty: none."
+            },
+            {
+              "name": "respect_robots",
+              "label": "Respect robots.txt",
+              "type": "boolean",
+              "required": false,
+              "description": "Off: ignore robots.txt (only if the service allows it). Empty: the profile's default, normally on."
+            },
+            {
+              "name": "rebuild_mapping",
+              "label": "Build a new mapping",
+              "type": "boolean",
+              "required": false,
+              "description": "On: the AI builds a new mapping even when the stored one still passes. Empty: off."
+            },
+            {
+              "name": "link_rules_off",
+              "label": "Links not to skip",
+              "type": "array",
+              "required": false,
+              "description": "Rules of links the crawl skips that you switch off for this run, by name: scheme, messenger_social, sensitive_path, action_params, file_extension, nofollow, facet_params, trap_budget, dynamic_params, canonical. Example: [\"facet_params\"] when a shop's products are reached only through its filters. Guide: Links the scraper skips. Empty: every rule on."
+            },
+            {
+              "name": "trap_pattern_budget",
+              "label": "Trap budget (pages)",
+              "type": "number",
+              "required": false,
+              "description": "A URL pattern stops being followed after this many pages in a row without a product page (crawler traps such as calendars and endless filters). 0: off. Empty: 100."
+            },
+            {
+              "name": "when_site_busy",
+              "label": "When the site is busy",
+              "type": "select",
+              "required": false,
+              "options": [
+                "skip",
+                "queue"
+              ],
+              "description": "When a run of the same site is still going on: skip ends this job 'Skipped' (not failed) without a new crawl, which suits schedules; queue starts this run when the other one ends. Empty: skip."
+            }
+          ],
+          "output_mode": "variables_and_artifacts",
+          "expected_outputs": [
+            {
+              "name": "scraper_run_id",
+              "type": "string",
+              "required": false,
+              "description": "The scraper run; empty in a Test Run, which starts no crawl. Follow it on the extension's Run detail page."
+            },
+            {
+              "name": "run_page_hint",
+              "type": "string",
+              "required": false,
+              "description": "Where to follow the crawl (Runs, Run detail) while this job waits for it."
+            },
+            {
+              "name": "mapping_summary",
+              "type": "string",
+              "required": false,
+              "description": "Per-field fill of the activated mapping."
+            },
+            {
+              "name": "run_summary",
+              "label": "Run summary",
+              "type": "string",
+              "required": false,
+              "description": "Why the run stopped, how complete it is, and why there is no file when it has no records."
+            },
+            {
+              "name": "result",
+              "label": "Result file details",
+              "type": "object",
+              "required": false,
+              "description": "From 'Get result': run id, file name, records, size, SHA-256, outcome, stop reason, records per template."
+            },
+            {
+              "name": "result_preview",
+              "label": "First rows",
+              "type": "array",
+              "required": false,
+              "description": "The first 10 records of the result file, from 'Read the result'."
+            },
+            {
+              "name": "skipped",
+              "label": "Skipped",
+              "type": "boolean",
+              "required": false,
+              "description": "True when no crawl was started because a run of this site was still going on (When the site is busy: skip); the job then ends 'Skipped' without files."
+            },
+            {
+              "name": "skipped_reason",
+              "label": "Why it was skipped",
+              "type": "string",
+              "required": false,
+              "description": "'Skipped: <site> is already being scraped (run <id>, since <time>).' Empty when the crawl started."
+            }
+          ],
+          "expected_artifacts": [
+            {
+              "name": "result_file",
+              "type": "file",
+              "required": false,
+              "description": "result.jsonl, one JSON record per line. Returned from 'Get result' (Return from workflow)."
+            },
+            {
+              "name": "result_csv",
+              "type": "file",
+              "required": false,
+              "description": "The same records as CSV (UTF-8 with BOM, separator ';'), from 'Get result CSV'. Absent with a service older than 2026-11-14."
+            }
+          ],
+          "side_effects": []
+        },
+        "canvas_annotations": [
+          {
+            "id": "note_run_form",
+            "text": "## Every setting is on the run form\nAn empty field uses the scraper profile's default. The Web Scraper extension's Guide page explains every field and when to set it.",
+            "x": -640,
+            "y": 0,
+            "width": 420,
+            "height": 320
+          },
+          {
+            "id": "note_before_start",
+            "text": "## Place for your own steps: before the start\nBefore 'Validate settings' (make your first step the start of the workflow). They see the run form in state.inputs.",
+            "x": -640,
+            "y": 360,
+            "width": 380,
+            "height": 200
+          },
+          {
+            "id": "note_review",
+            "text": "## Place for your own steps: review the mapping\nOn the path into 'Test mapping before activation', e.g. an Approval showing state.field_results. The mapping is always tested again before it is activated.",
+            "x": -640,
+            "y": 600,
+            "width": 420,
+            "height": 220
+          },
+          {
+            "id": "note_keep",
+            "text": "## Keep these steps\nValidate settings, Fetch samples, Build mapping / Test, Test mapping before activation, Activate mapping, Start run, Start skipped?, Crawl started?, Wait for the run to end, Get run summary and Get result. The Guide page says what each step does.",
+            "x": -640,
+            "y": 860,
+            "width": 380,
+            "height": 200
+          },
+          {
+            "id": "note_wait",
+            "text": "## Keep Scraper events working: this job waits for its run\nAfter the start this job waits (no worker held) until Scraper events reports the end of this run, then stores result.jsonl and result.csv here. Scraper events must be set up with its webhook. Call this workflow from your own workflow with Invoke to process the files there.",
+            "x": -640,
+            "y": 1100,
+            "width": 420,
+            "height": 240
+          }
+        ],
+        "run_title": "{{ inputs.run_name }} {{ inputs.site_url }}"
+      },
+      "participants": [],
+      "tags": [
+        "web-scraper",
+        "template"
+      ],
+      "steps": [
+        {
+          "step_id": "validate_settings",
+          "display_name": "Validate settings",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "validate_config"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site_url": "state.inputs.site_url",
+            "extraction_instructions": "state.inputs.extraction_instructions",
+            "max_records": "state.inputs.max_records|default:null",
+            "target_page_selector": "state.inputs.target_page_selector|default:null",
+            "url_include": "state.inputs.url_include|default:null",
+            "url_exclude": "state.inputs.url_exclude|default:null",
+            "discovery_mode": "state.inputs.discovery_mode|default:null",
+            "debug": "state.inputs.debug|default:null",
+            "crawl_include": "state.inputs.crawl_include|default:null",
+            "stay_in_section": "state.inputs.stay_in_section|default:null",
+            "ai_choose_fields": "state.inputs.ai_choose_fields|default:null",
+            "fields_hint": "state.inputs.fields_hint|default:null",
+            "fields": "state.inputs.fields|default:null",
+            "required_fields": "state.inputs.required_fields|default:null",
+            "urls": "state.inputs.urls|default:null",
+            "urls_file": "state.inputs.urls_file|default:null",
+            "sitemap_url": "state.inputs.sitemap_url|default:null",
+            "max_pages": "state.inputs.max_pages|default:null",
+            "single_page": "state.inputs.single_page|default:null",
+            "fetch_mode": "state.inputs.fetch_mode|default:null",
+            "browser": "state.inputs.browser|default:null",
+            "browser_os": "state.inputs.browser_os|default:null",
+            "canvas_noise": "state.inputs.canvas_noise|default:null",
+            "use_proxy_tiers": "state.inputs.use_proxy_tiers|default:null",
+            "challenge_click": "state.inputs.challenge_click|default:null",
+            "use_solver": "state.inputs.use_solver|default:null",
+            "politeness": "state.inputs.politeness|default:null",
+            "delay_min_seconds": "state.inputs.delay_min_seconds|default:null",
+            "delay_max_seconds": "state.inputs.delay_max_seconds|default:null",
+            "max_concurrency": "state.inputs.max_concurrency|default:null",
+            "max_requests_per_minute": "state.inputs.max_requests_per_minute|default:null",
+            "page_timeout_seconds": "state.inputs.page_timeout_seconds|default:null",
+            "extraction_mode": "state.inputs.extraction_mode|default:null",
+            "structured_data_types": "state.inputs.structured_data_types|default:null",
+            "wait_after_load_ms": "state.inputs.wait_after_load_ms|default:null",
+            "wait_for_selector_ms": "state.inputs.wait_for_selector_ms|default:null",
+            "headers": "state.inputs.headers|default:null",
+            "respect_robots": "state.inputs.respect_robots|default:null",
+            "rebuild_mapping": "state.inputs.rebuild_mapping|default:null",
+            "link_rules_off": "state.inputs.link_rules_off|default:null",
+            "trap_pattern_budget": "state.inputs.trap_pattern_budget|default:null",
+            "when_site_busy": "state.inputs.when_site_busy|default:null"
+          },
+          "output_mapping_jsonb": {
+            "config": "state.config",
+            "site": "state.site",
+            "is_url_list": "state.is_url_list",
+            "rebuild_mapping": "state.rebuild_mapping",
+            "warning_text": "state.settings_warnings",
+            "required_fill_threshold": "state.required_fill_threshold",
+            "max_refinements": "state.max_refinements",
+            "extraction_mode": "state.extraction_mode",
+            "fields": "state.fields",
+            "required_fields": "state.required_fields",
+            "extraction_instructions": "state.extraction_instructions",
+            "target_page_selector": "state.target_page_selector",
+            "ai_choose_fields": "state.ai_choose_fields",
+            "fields_hint": "state.fields_hint"
+          },
+          "description": "Merges the run form with the profile's defaults; fails naming a field that is above a service limit."
+        },
+        {
+          "step_id": "is_url_list",
+          "display_name": "URL list?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.is_url_list",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "url_list mode scrapes only the given URLs, so the site analysis is skipped."
+        },
+        {
+          "step_id": "analyze_site",
+          "display_name": "Analyze site",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "analyze_site"
+            }
+          },
+          "input_mapping_jsonb": {
+            "config": "state.config"
+          },
+          "output_mapping_jsonb": {
+            "discovery_mode": "state.chosen_discovery_mode",
+            "reasons": "state.strategy_reasons",
+            "protection": "state.site_protection",
+            "sitemap_found": "state.sitemap_found",
+            "protection_summary": "state.protection_summary",
+            "protection_not_passed": "state.protection_not_passed",
+            "link_rules": "state.link_rules"
+          },
+          "description": "Looks at robots.txt, the sitemap, JavaScript and protection; protection_summary describes any protection check."
+        },
+        {
+          "step_id": "choose_strategy",
+          "display_name": "Choose strategy",
+          "step_kind": "set_variable",
+          "description": "With discovery_mode auto the analysis recommends sitemap, crawl or both; an explicit choice is kept.",
+          "override": {
+            "set_variable": {
+              "assignments": {
+                "state.config.discovery_mode": {
+                  "source": "state.chosen_discovery_mode"
+                }
+              }
+            }
+          }
+        },
+        {
+          "step_id": "get_mappings",
+          "display_name": "Get stored mappings",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_mappings"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site": "state.site"
+          },
+          "output_mapping_jsonb": {
+            "mappings": "state.stored_mappings",
+            "has_active_mapping": "state.has_stored_mapping",
+            "expected_versions": "state.expected_versions"
+          },
+          "description": "Reads the extraction mapping already active for this site, if any."
+        },
+        {
+          "step_id": "fetch_samples",
+          "display_name": "Fetch samples",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "fetch_samples"
+            }
+          },
+          "input_mapping_jsonb": {
+            "config": "state.config",
+            "analysis_protection_summary": "state.protection_summary|default:null",
+            "analysis_protection_not_passed": "state.protection_not_passed|default:null"
+          },
+          "output_mapping_jsonb": {
+            "sample_ids": "state.sample_ids",
+            "samples": "state.samples",
+            "warning_text": "state.sample_warnings",
+            "protection_summary": "state.sample_protection_summary",
+            "variant_sample_ids": "state.variant_sample_ids",
+            "variant_summary": "state.variant_summary"
+          },
+          "description": "Loads a few product pages for the mapping; fails saying why when the protection is not passed or no product page is found."
+        },
+        {
+          "step_id": "rebuild_asked",
+          "display_name": "Rebuild asked?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.rebuild_mapping",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "'Build a new mapping' on the run form skips the stored mapping."
+        },
+        {
+          "step_id": "has_stored_mapping",
+          "display_name": "Stored mapping?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.has_stored_mapping",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "Is a mapping already active for this site?"
+        },
+        {
+          "step_id": "test_stored_mapping",
+          "display_name": "Test stored mapping",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "test_mapping"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site": "state.site",
+            "mappings": "state.stored_mappings",
+            "sample_ids": "state.sample_ids",
+            "required_fill_threshold": "state.required_fill_threshold",
+            "required_fields": "state.required_fields",
+            "extraction_mode": "state.extraction_mode",
+            "target_page_selector": "state.target_page_selector|default:null",
+            "variant_sample_ids": "state.variant_sample_ids|default:[]"
+          },
+          "output_mapping_jsonb": {
+            "passed": "state.stored_passed",
+            "mappings": "state.mappings",
+            "field_results": "state.field_results",
+            "summary": "state.mapping_summary"
+          },
+          "description": "Tests the stored mapping on the new samples; a passing one is reused without AI."
+        },
+        {
+          "step_id": "stored_passed",
+          "display_name": "Stored mapping passes?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.stored_passed",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "A stored mapping that still passes is reused; otherwise the AI builds a new one."
+        },
+        {
+          "step_id": "build_mapping",
+          "display_name": "Build mapping (AI)",
+          "step_kind": "invoke_workflow",
+          "description": "The AI writes the extraction mapping; it is tested on the samples and refined at most twice.",
+          "override": {
+            "invoke_workflow": {
+              "workflow_id": "extension.flowsteward.web-scraper.impl_build_mapping",
+              "action": {
+                "extension_id": "flowsteward.web-scraper",
+                "install_id": "flowsteward.web-scraper",
+                "action_id": "build_mapping"
+              },
+              "connections": {
+                "profile": {
+                  "connection_id": "scraper_profile"
+                }
+              },
+              "input_mapping": {
+                "site": "state.site",
+                "sample_ids": "state.sample_ids",
+                "samples": "state.samples",
+                "extraction_instructions": "state.extraction_instructions",
+                "fields": "state.fields",
+                "required_fields": "state.required_fields",
+                "required_fill_threshold": "state.required_fill_threshold",
+                "extraction_mode": "state.extraction_mode",
+                "max_refinements": "state.max_refinements",
+                "previous_mappings": "state.stored_mappings",
+                "target_page_selector": "state.target_page_selector",
+                "variant_sample_ids": "state.variant_sample_ids",
+                "ai_choose_fields": "state.ai_choose_fields",
+                "fields_hint": "state.fields_hint"
+              },
+              "output_mapping": {
+                "mappings": "state.mappings",
+                "passed": "state.built_passed",
+                "field_results": "state.field_results",
+                "failures": "state.mapping_failures",
+                "attempts": "state.mapping_attempts",
+                "summary": "state.mapping_summary"
+              }
+            }
+          },
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "built_passed",
+          "display_name": "Mapping passed?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.built_passed",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "Did the AI's mapping pass the test on the samples?"
+        },
+        {
+          "step_id": "no_mapping",
+          "display_name": "No passing mapping",
+          "step_kind": "stop_fail",
+          "override": {
+            "stop_fail": {
+              "message": "No mapping passed the test on the samples after the refinements. Open the 'Build mapping' step to see the per-field table (field_results, failures), then adjust the instructions, the fields or the run form (for example the product page selector) and run again. If the samples are challenge pages, read protection_summary of 'Fetch samples'."
+            }
+          },
+          "description": "No mapping passed: read 'Build mapping (AI)' (field_results, failures), then adjust the run form."
+        },
+        {
+          "step_id": "retest_mapping",
+          "display_name": "Test mapping before activation",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "test_mapping"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site": "state.site",
+            "mappings": "state.mappings",
+            "sample_ids": "state.sample_ids",
+            "required_fill_threshold": "state.required_fill_threshold",
+            "required_fields": "state.required_fields",
+            "extraction_mode": "state.extraction_mode",
+            "target_page_selector": "state.target_page_selector|default:null",
+            "variant_sample_ids": "state.variant_sample_ids|default:[]"
+          },
+          "output_mapping_jsonb": {
+            "passed": "state.final_passed",
+            "field_results": "state.field_results",
+            "summary": "state.mapping_summary"
+          },
+          "description": "Tests the mapping again, so a change made in the review place is never activated untested."
+        },
+        {
+          "step_id": "final_passed",
+          "display_name": "Still passes?",
+          "step_kind": "if",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.final_passed",
+                "operator": "truthy"
+              }
+            }
+          },
+          "description": "Does the mapping still pass after the review place?"
+        },
+        {
+          "step_id": "review_failed",
+          "display_name": "Changed mapping fails",
+          "step_kind": "stop_fail",
+          "override": {
+            "stop_fail": {
+              "message": "The mapping changed in the review place no longer passes the test on the samples. See 'Test mapping before activation' for the per-field table."
+            }
+          },
+          "description": "The mapping changed in the review place no longer passes; nothing was activated."
+        },
+        {
+          "step_id": "activate_mapping",
+          "display_name": "Activate mapping",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "activate_mapping"
+            }
+          },
+          "input_mapping_jsonb": {
+            "site": "state.site",
+            "mappings": "state.mappings",
+            "expected_versions": "state.expected_versions",
+            "note": "literal:\"Reviewed in Scrape a site\"",
+            "fail_on_conflict": "literal:true"
+          },
+          "output_mapping_jsonb": {
+            "summary": "state.activation_summary"
+          },
+          "description": "Activates each template only if nobody changed it since it was read; otherwise the run stops with a message to start again."
+        },
+        {
+          "step_id": "start_crawl",
+          "display_name": "Start run",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "start_run"
+            }
+          },
+          "input_mapping_jsonb": {
+            "config": "state.config",
+            "skipped_start_succeeds": "literal:true"
+          },
+          "output_mapping_jsonb": {
+            "run_id": "state.scraper_run_id",
+            "run_page_hint": "state.run_page_hint",
+            "site": "state.run_site",
+            "skipped": "state.skipped",
+            "skipped_reason": "state.skipped_reason"
+          },
+          "description": "Starts the crawl; repeating it returns the same run. Its id start_crawl tells Scraper events that this job waits for the run. A busy site (When the site is busy: skip) starts nothing: skipped."
+        },
+        {
+          "step_id": "start_skipped",
+          "display_name": "Start skipped?",
+          "step_kind": "if",
+          "description": "A run of this site was still going on and When the site is busy is skip: no crawl was started, which is not a failure.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.skipped",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "crawl_started",
+          "display_name": "Crawl started?",
+          "step_kind": "if",
+          "description": "A Test Run suppresses 'Start run' (test_mode_status: suppressed) and leaves no run id; that is not a failure.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.scraper_run_id",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "wait_for_run",
+          "display_name": "Wait for the run to end",
+          "step_kind": "wait",
+          "description": "Waits (no worker held) until Scraper events reports that this crawl completed or failed, at most 3 days. The job shows 'Waiting for event'.",
+          "override": {
+            "wait": {
+              "event": {
+                "source": "flowsteward.web-scraper",
+                "event_types": [
+                  "run_completed",
+                  "run_failed"
+                ],
+                "correlation_key": "state.scraper_run_id"
+              },
+              "timeout_ms": 259200000,
+              "output_mapping": {
+                "event_type": "state.run_event.event_type",
+                "payload": "state.run_event.payload"
+              }
+            }
+          },
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "check_run",
+          "display_name": "Get run summary",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_run_summary"
+            }
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.scraper_run_id",
+            "require_completed": "literal:true"
+          },
+          "output_mapping_jsonb": {
+            "state": "state.run.state",
+            "outcome": "state.run.outcome",
+            "stop_reason": "state.run.stop_reason",
+            "templates": "state.run.templates",
+            "counters": "state.run.counters",
+            "site": "state.run.site",
+            "has_records": "state.run.has_records",
+            "record_count": "state.run.record_count",
+            "no_records_message": "state.run.no_records_message",
+            "explanation": "state.run.explanation",
+            "completeness": "state.run.completeness",
+            "comparison_warning": "state.run.comparison_warning",
+            "timeline": "state.run.timeline",
+            "politeness": "state.run.politeness",
+            "message": "state.run_summary"
+          },
+          "description": "How the run ended. A run that did not complete (failed, or still going on after the wait) fails this step with the run's summary as the message."
+        },
+        {
+          "step_id": "has_records",
+          "display_name": "Any records?",
+          "step_kind": "if",
+          "description": "No records (stopped early, or nothing extracted): there is no result file; the job ends with the run summary.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.run.has_records",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "get_result",
+          "display_name": "Get result",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_result"
+            },
+            "returned_files": [
+              {
+                "result": "artifact_handle",
+                "key": "result_file"
+              }
+            ]
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.scraper_run_id"
+          },
+          "output_mapping_jsonb": {
+            "artifact_handle": "state.result.artifact_handle",
+            "record_count": "state.result.record_count",
+            "size_bytes": "state.result.size_bytes",
+            "sha256": "state.result.sha256",
+            "templates": "state.result.templates",
+            "outcome": "state.result.outcome",
+            "stop_reason": "state.result.stop_reason",
+            "run_id": "state.result.run_id",
+            "file_name": "state.result.file_name",
+            "has_csv": "state.result.has_csv"
+          },
+          "description": "Stores the result file (JSON Lines) as a file of this job and returns its descriptor - never the records.",
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "has_csv",
+          "display_name": "CSV available?",
+          "step_kind": "if",
+          "description": "A service from 2026-11-14 on also writes the records as CSV; an older one does not, and the CSV step is skipped.",
+          "override": {
+            "if": {
+              "condition": {
+                "selector": "state.result.has_csv",
+                "operator": "truthy"
+              }
+            }
+          }
+        },
+        {
+          "step_id": "get_result_csv",
+          "display_name": "Get result CSV",
+          "step_kind": "connector",
+          "connector_id": "extension.flowsteward.web-scraper",
+          "connection_binding_jsonb": {
+            "connection_id": "scraper_profile"
+          },
+          "override": {
+            "connector": {
+              "extension_id": "flowsteward.web-scraper",
+              "operation_id": "get_result_csv"
+            },
+            "returned_files": [
+              {
+                "result": "artifact_handle",
+                "key": "result_csv"
+              }
+            ]
+          },
+          "input_mapping_jsonb": {
+            "run_id": "state.scraper_run_id"
+          },
+          "output_mapping_jsonb": {
+            "artifact_handle": "state.result_csv.artifact_handle",
+            "file_name": "state.result_csv.file_name",
+            "size_bytes": "state.result_csv.size_bytes"
+          },
+          "description": "Stores the same records as CSV (separator ';', for Excel) beside result.jsonl, after checking size and checksum.",
+          "error_policy": {
+            "on_error": "route_to_step"
+          }
+        },
+        {
+          "step_id": "read_result",
+          "display_name": "Read the result",
+          "step_kind": "tabular_feed",
+          "description": "Reads the records into a dataset (state.result_table); the first 10 rows become the output result_preview. If it fails, the files are still returned.",
+          "override": {
+            "tabular_feed": {
+              "operation": "read",
+              "input": {
+                "artifact_handle": "state.result.artifact_handle"
+              },
+              "options": {
+                "format": "ndjson"
+              },
+              "result_target": "state.result_table"
+            }
+          },
+          "error_policy": {
+            "on_error": "route_to_step"
+          },
+          "output_mapping_jsonb": {
+            "preview_rows": "state.result_preview"
+          }
+        },
+        {
+          "step_id": "done",
+          "display_name": "Result ready",
+          "step_kind": "stop_success",
+          "description": "The crawl ended; its files and summary are this job's outputs.",
+          "override": {
+            "stop_success": {
+              "message": "The crawl ended and its result is in this job's Result panel: result_file (result.jsonl, one JSON record per line), result_csv (the same records as CSV for Excel, when the service writes one), result (file details), result_preview (the first 10 records) and run_summary (why the run stopped, how complete it is). A workflow that runs Scrape a site with an Invoke step receives the same outputs and files."
+            }
+          }
+        },
+        {
+          "step_id": "no_records",
+          "display_name": "No records",
+          "step_kind": "stop_success",
+          "description": "The crawl ended without records; run_summary says why.",
+          "override": {
+            "stop_success": {
+              "message": "The crawl ended without records, so there is no file. run_summary says why (the stop reason and the pages loaded)."
+            }
+          }
+        },
+        {
+          "step_id": "result_failed",
+          "display_name": "Storing the result failed",
+          "step_kind": "stop_fail",
+          "description": "Get result or Get result CSV failed; the service still keeps the files.",
+          "override": {
+            "stop_fail": {
+              "message": "The crawl completed, but storing its files in this job failed (see the failed step). The service keeps them (14 days by default): Web Scraper > Runs > Run detail shows the result and how to fetch it. Running Scrape a site again starts a new crawl."
+            }
+          }
+        },
+        {
+          "step_id": "test_run_only",
+          "display_name": "Test run: no crawl",
+          "step_kind": "stop_success",
+          "description": "Reached when 'Start run' was suppressed (a Test Run without the acknowledgement): no crawl ran, so there is no run id.",
+          "override": {
+            "stop_success": {
+              "message": "Test run: the mapping was built and tested; no crawl was started. Use Run workflow with the acknowledgement to scrape."
+            }
+          }
+        },
+        {
+          "step_id": "site_busy_skipped",
+          "display_name": "Skipped: site busy",
+          "step_kind": "stop_success",
+          "description": "No crawl: a run of this site was still going on (When the site is busy: skip); skipped_reason names it.",
+          "override": {
+            "stop_success": {
+              "message": "Skipped: a run of this site was still going on, so no new crawl was started and there are no files. The output skipped_reason names that run and since when; follow it on Web Scraper > Runs. To wait for it instead, set When the site is busy to queue."
+            }
+          }
+        },
+        {
+          "step_id": "mapping_build_failed",
+          "display_name": "Build mapping failed",
+          "step_kind": "stop_fail",
+          "override": {
+            "stop_fail": {
+              "message": "'Build mapping (AI)' did not finish: its own workflow 'Web Scraper: build mapping' failed (open this job's child run). Usually 'Write the mapping (AI)' failed - the model gave no answer that fits the structured output (structured_output_unavailable), or the project has no model route with structured output. 'Samples for the agent' or 'Test the mapping on the samples' fail when the scraper service is unreachable or the samples expired (sample_not_found); run the workflow again."
+            }
+          },
+          "description": "The AI step failed (usually no structured answer from the model); see its child run."
+        }
+      ],
+      "groups": [],
+      "for_each": [],
+      "execution_graph": {
+        "schema_version": 1,
+        "entry": {
+          "kind": "step",
+          "id": "validate_settings"
+        },
+        "edges": [
+          {
+            "source": {
+              "kind": "step",
+              "id": "validate_settings"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "is_url_list"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "is_url_list"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_mappings"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "is_url_list"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "analyze_site"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "analyze_site"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "choose_strategy"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "choose_strategy"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_mappings"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_mappings"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "fetch_samples"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "fetch_samples"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "rebuild_asked"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "rebuild_asked"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "build_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "rebuild_asked"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "has_stored_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_stored_mapping"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "test_stored_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_stored_mapping"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "build_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "test_stored_mapping"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "stored_passed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "stored_passed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "retest_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "stored_passed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "build_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "build_mapping"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "built_passed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "built_passed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "retest_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "built_passed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "no_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "retest_mapping"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "final_passed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "final_passed"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "activate_mapping"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "final_passed"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "review_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "activate_mapping"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "start_crawl"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "start_crawl"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "start_skipped"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "start_skipped"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "site_busy_skipped"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "start_skipped"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "crawl_started"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "build_mapping"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "mapping_build_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "crawl_started"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "test_run_only"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "crawl_started"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "wait_for_run"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "wait_for_run"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "check_run"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "wait_for_run"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "check_run"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "check_run"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_records"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "no_records"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "result_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "outcome": {
+              "name": "true"
+            },
+            "target": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "has_csv"
+            },
+            "outcome": {
+              "name": "false"
+            },
+            "target": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "get_result_csv"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "result_failed"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "outcome": {
+              "name": "success"
+            },
+            "target": {
+              "kind": "step",
+              "id": "done"
+            },
+            "rework": false
+          },
+          {
+            "source": {
+              "kind": "step",
+              "id": "read_result"
+            },
+            "outcome": {
+              "name": "error"
+            },
+            "target": {
+              "kind": "step",
+              "id": "done"
+            },
+            "rework": false
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": {
+    "agents": [],
+    "skills": [],
+    "tools": [],
+    "child_workflows": [],
+    "published_blocks": [],
+    "extensions": [
+      {
+        "install_id": "flowsteward.web-scraper",
+        "extension_id": "flowsteward.web-scraper",
+        "display_name": "Web Scraper",
+        "required": true,
+        "sources": [
+          "validate_settings.connector_id",
+          "analyze_site.connector_id",
+          "get_mappings.connector_id",
+          "fetch_samples.connector_id",
+          "test_stored_mapping.connector_id",
+          "retest_mapping.connector_id",
+          "activate_mapping.connector_id",
+          "start_crawl.connector_id",
+          "check_run.connector_id",
+          "get_result.connector_id",
+          "get_result_csv.connector_id",
+          "build_mapping.override.invoke_workflow.action"
+        ],
+        "metadata": {
+          "dependency_kind": "extension_install",
+          "extension_id": "flowsteward.web-scraper",
+          "reason": "connector_install_id_missing",
+          "note": "Map to this account's install of the Web Scraper extension."
+        }
+      }
+    ],
+    "project_connections": [
+      {
+        "connection_ref": "scraper_profile",
+        "display_name": "Scraper profile",
+        "required": true,
+        "sources": [
+          "scrape_a_site.validate_settings.connection_binding",
+          "scrape_a_site.analyze_site.connection_binding",
+          "scrape_a_site.get_mappings.connection_binding",
+          "scrape_a_site.fetch_samples.connection_binding",
+          "scrape_a_site.test_stored_mapping.connection_binding",
+          "scrape_a_site.retest_mapping.connection_binding",
+          "scrape_a_site.activate_mapping.connection_binding",
+          "scrape_a_site.start_crawl.connection_binding",
+          "scrape_a_site.check_run.connection_binding",
+          "scrape_a_site.get_result.connection_binding",
+          "scrape_a_site.get_result_csv.connection_binding",
+          "scrape_a_site.build_mapping.override.invoke_workflow.connections"
+        ],
+        "metadata": {
+          "extension_id": "flowsteward.web-scraper",
+          "connection_type": "scraper_profile",
+          "note": "Map to the scraper_profile connection this workflow uses."
+        }
+      }
+    ]
+  },
+  "import_hints": {
+    "default_enabled": false,
+    "conflict_policy": "rename_workflow"
+  }
+}

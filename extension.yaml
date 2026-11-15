@@ -1,0 +1,107 @@
+manifest_version: 2
+lifecycle: {data_schema_version: 1, data_migrations: []}
+extension_id: flowsteward.web-scraper
+kind: tool_provider
+version: 0.1.26
+display_name: Web Scraper
+# The installed extension's card and detail page show this line (and the descriptor's
+# identity.description); the catalog shows listing.description.
+description: Collect product and page data from websites into a CSV or JSON Lines file for your workflows, through a scraper service you run yourself.
+vendor:
+  name: Flow Steward
+  support_url: https://github.com/Flow-Steward/ext-data-web-scraper/issues
+  website_url: https://github.com/Flow-Steward/ext-data-web-scraper
+listing:
+  category: data
+  # Primary category first. `ai`: the build_mapping action runs an AI agent that writes
+  # and repairs the extraction mapping (catalog README, "Reviewing categorization").
+  categories:
+    - data
+    - ai
+  tags:
+    - web-scraping
+    - crawler
+    - data-extraction
+    - product-data
+    - price-monitoring
+    - json-lines
+    - csv
+  # The detailed text of the catalog page (the catalog reads listing.description first).
+  description: |-
+    Web Scraper collects structured records, such as products with their name, price, SKU, images and variants, from websites and gives each crawl to your workflow as two files: result.jsonl (one JSON record per line) and result.csv (semicolon-separated, opens in Excel). The crawling runs in the separate Web Scraper service, a Docker container you run yourself next to Flow Steward. The extension connects projects to that service, adds workflow actions and pages, and stores the results as workflow files.
+
+    The read-only Scrape a site workflow analyzes a site (robots.txt, sitemap, page types), loads a few sample pages, has AI write the extraction mapping with your project's default model, tests the mapping on the samples, starts the crawl and waits for it without holding a worker. When the crawl ends it returns the files, the first records and a run summary that says why the run stopped and how complete it is. A stored mapping is reused on the next run of the same site, and a mapping that stops matching during a crawl is repaired by AI and tested again before it is used. The Runs and Run detail pages follow every crawl; a run can be stopped, resumed, and its missed pages collected again.
+
+    Typical uses: load a supplier's catalogue every week on a schedule and update your own product data; follow competitors' public prices, with the old price and a sale flag when the page shows them; or call Scrape a site from your own workflow with Invoke and process the CSV or JSON Lines file in the next steps.
+
+    Setup: run the Web Scraper service in Docker with an API token and a secrets key (about 2 GB of memory per browser crawl), create a scraper profile in the project with the service address and token, and add the webhook the service uses to report finished runs. Politeness presets (gentle, normal, fast) set the pause between pages, the pages loaded at once, the requests per minute and the page timeout, and the service slows down by itself when a site struggles. A new start for a site that is still being crawled is skipped, or queued if you choose. Proxies and a third-party challenge solver are optional profile settings.
+
+    Limits: scrape only sites whose terms allow it. robots.txt is respected by default. The scraper does not log in to sites, and it cannot promise to get past CAPTCHAs or bot protection; a site that blocks it ends the run with that reason. The service caps a result at 99 MiB by default. Requires Flow Steward 0.9.18 or later.
+  summary: Collect product and page data from websites into a CSV or JSON Lines file for your workflows, through a scraper service you run yourself.
+  setup_summary: Run the Web Scraper service in Docker with an API token and a secrets key. In a project, create a scraper profile with the service URL and token, approve its secrets, and add the Scraper events webhook so the service can report finished runs. A service on a private network also needs FS_ALLOW_PRIVATE_REMOTE_URLS=1 on the platform.
+features:
+  - tool
+  - action
+  - query
+  - artifact_bundle
+required_scopes:
+  - extension:invoke
+  - artifact:read
+  - artifact:write
+machine_auth:
+  service_account_key: svc_ext_web_scraper
+  required_scopes:
+    - extension:invoke
+    - artifact:read
+    - artifact:write
+account_scope:
+  scope_type: project
+  description: Scraper profiles (service address, token, webhook, proxies, solver) are project connections; mappings and runs live in the scraper service.
+# The extension calls only the scraper service a project enters on its profile.
+# Proxies and solvers are called by the service, never by the extension.
+egress:
+  connection_fields:
+    - scraper_profile.service_url
+# start_run creates a crawl on the service. The host's external-effect ledger
+# refuses a duplicate for the same job, step and payload, on top of the
+# service's own idempotency key fs:<job id>:<step id>[:<loop position>].
+external_effects:
+  - operation_id: start_run
+    effect_kind: remote_job_start
+    channel: web_scraper
+    idempotency: required
+    test_mode_behavior: suppress
+runtime:
+  contract_version: extension_host_v2
+  # Pages read the service through the page's profile (ADR 0067, host 1.7.0); grid
+  # links and filters, and connection slots (ADR 0068), need host 1.8.0 (0.9.18).
+  compatibility:
+    platform_min: 1.8.0
+  extension_contract_v2:
+    connection_types: contracts/connection_types.yaml
+    operation_manifest: contracts/operation_manifest.yaml
+    step_ui_manifest: contracts/step_ui_manifest.yaml
+    artifact_policies: contracts/artifact_policies.yaml
+entrypoint:
+  mode: subprocess
+  command:
+    - python3
+    - main.py
+  # One timeout for every action of the extension (there is no per-action
+  # timeout): the canonical policy, 330 s by default, at most 3630 s, set by the
+  # operator through FS_EXTENSION_OPERATION_TIMEOUT_SECONDS. get_result must fit
+  # its download, check and upload into it.
+  timeout_policy:
+    env: FS_EXTENSION_OPERATION_TIMEOUT_SECONDS
+    default_seconds: 300
+    minimum_seconds: 30
+    maximum_seconds: 3600
+    headroom_seconds: 30
+health:
+  command:
+    - python3
+    - health.py
+  timeout_seconds: 5
+ui_manifest: ui/ui_manifest.yaml
+query_manifest: ui/queries/queries.yaml
+action_manifest: ui/actions/actions.yaml
