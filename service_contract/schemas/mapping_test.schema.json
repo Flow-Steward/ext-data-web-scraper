@@ -133,7 +133,7 @@
         "reading_rules": {
           "type": "array",
           "maxItems": 10,
-          "description": "Added 2026-11-14 (A54+). How a `price`/`number` value was read where it was not plain, per sample: `rule` `minor_units_joined` (the price was split into tags, e.g. `24<sup>99</sup>` read as 24.99), `page_language:<lang>`, `og_locale:<locale>`, `currency:<code>` (an ambiguous `1.234`/`1,234` decided by the page's decimal mark) or `default_thousands` (no hint: read as thousands); `text` the text read.",
+          "description": "Added 2026-11-14. How a `price`/`number` value was read where it was not plain, per sample: `rule` `minor_units_joined` (the price was split into tags, e.g. `24<sup>99</sup>` read as 24.99), `page_language:<lang>`, `og_locale:<locale>`, `currency:<code>` (an ambiguous `1.234`/`1,234` decided by the page's decimal mark) or `default_thousands` (no hint: read as thousands); `text` the text read.",
           "items": {
             "type": "object",
             "required": [
@@ -240,7 +240,7 @@
           "items": {
             "$ref": "error.schema.json#/$defs/field_error"
           },
-          "description": "Added 2026-11-14 (A54). Present when the template matched at least one sample. Each entry fails the template (`passed: false`) whatever the fill rates: `price_not_extracted` — the mapping has a `price` field, yet no record of a sample whose page shows a price (`price_on_page` `shown` or `range`) got one; `variants_not_used` — matched samples carry variant data (a variant source with two or more variants, see the samples' `variant_sources`) and the mapping declares no `variants`. Since 2026-11-14 (A54+) also `price_mismatch` — the mapped price differs (more than rounding: 0.011 or 0.1 %) from the price the page states for programs (schema.org `offers.price`/`lowPrice`, `meta product:price:amount`, `[itemprop=price][content]`, `data-price`; a `data-*` value in minor units agrees), and `price_is_old_price` — on a sale page the mapped price is the struck-through old price. The same entries are also in the answer's `warnings[]`; `message` says what to change (README 6.3)."
+          "description": "Added 2026-11-14. Present when the template matched at least one sample. Each entry fails the template (`passed: false`) whatever the fill rates: `price_not_extracted` — the mapping has a `price` field, yet no record of a sample whose page shows a price (`price_on_page` `shown` or `range`) got one; `variants_not_used` — matched samples carry variant data (a variant source with two or more variants, see the samples' `variant_sources`) and the mapping declares no `variants`. Since 2026-11-14 also `price_mismatch` — the mapped price differs (more than rounding: 0.011 or 0.1 %) from the price the page states for programs (schema.org `offers.price`/`lowPrice`, `meta product:price:amount`, `[itemprop=price][content]`, `data-price`; a `data-*` value in minor units agrees), and `price_is_old_price` — on a sale page the mapped price is the struck-through old price. The same entries are also in the answer's `warnings[]`; `message` says what to change (README 6.3)."
         }
       }
     },
@@ -291,7 +291,7 @@
         },
         "variants": {
           "type": "object",
-          "description": "Added 2026-11-13 (ROUND2 §2), for a mapping with `variants`: how many variants the source gave on this sample, which source (`null`: none, one record), and up to 20 variant records (`variant`, `data`). Since 2026-11-14 an item also carries the variant record's `price_status` (and `price_max`, `currency_from_default` when they apply).",
+          "description": "Added 2026-11-13, for a mapping with `variants`: how many variants the source gave on this sample, which source (`null`: none, one record), and up to 20 variant records (`variant`, `data`). Since 2026-11-14 an item also carries the variant record's `price_status` (and `price_max`, `currency_from_default` when they apply).",
           "properties": {
             "count": {
               "type": "integer",
@@ -320,20 +320,20 @@
         },
         "price_on_page": {
           "$ref": "samples.schema.json#/$defs/price_on_page",
-          "description": "Added 2026-11-14 (A54): what the stored page shows of its price, whatever the mapping reads."
+          "description": "Added 2026-11-14: what the stored page shows of its price, whatever the mapping reads."
         },
         "price_status": {
           "$ref": "record.schema.json#/$defs/price_status",
-          "description": "Added 2026-11-14 (A54): the page record's `price_status` (record.schema.json), for a template with a `price` field; variant records carry theirs in `variants.items[]`."
+          "description": "Added 2026-11-14: the page record's `price_status` (record.schema.json), for a template with a `price` field; variant records carry theirs in `variants.items[]`."
         },
         "price_max": {
           "type": "number",
-          "description": "Added 2026-11-14 (A54): with `price_status: range`."
+          "description": "Added 2026-11-14: with `price_status: range`."
         },
         "currency_from_default": {
           "type": "boolean",
           "const": true,
-          "description": "Added 2026-11-14 (A54): as in a record."
+          "description": "Added 2026-11-14: as in a record."
         }
       }
     },

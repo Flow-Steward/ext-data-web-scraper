@@ -3,7 +3,7 @@
   "time": "2026-11-12T08:40:00Z",
   "service": {
     "name": "web-scraper-service",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "api_versions": [
       "v1"
     ],

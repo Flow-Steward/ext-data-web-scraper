@@ -147,7 +147,7 @@
               "price_not_extracted"
             ]
           },
-          "description": "Added 2026-11-14 (A54). Stored pages of the template that are incomplete only because the mapping misses what they show, by code (README 4.5, 4.6): `variants_not_used` — add a `variants` block (the samples' `variant_sources`); `price_not_extracted` — read the product's price block. Those pages come first in `example_urls` and `samples`."
+          "description": "Added 2026-11-14. Stored pages of the template that are incomplete only because the mapping misses what they show, by code (README 4.5, 4.6): `variants_not_used` — add a `variants` block (the samples' `variant_sources`); `price_not_extracted` — read the product's price block. Those pages come first in `example_urls` and `samples`."
         }
       }
     },

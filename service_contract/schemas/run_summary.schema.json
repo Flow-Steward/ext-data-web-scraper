@@ -226,7 +226,7 @@
         "sentence"
       ],
       "additionalProperties": false,
-      "description": "Added 2026-11-14 (ROUND2 §6/§7). In plain words: while running, the progress; at the end, why the run stopped and what was collected; `advice` = what to do next.",
+      "description": "Added 2026-11-14. In plain words: while running, the progress; at the end, why the run stopped and what was collected; `advice` = what to do next.",
       "properties": {
         "sentence": {
           "type": "string",
@@ -241,7 +241,7 @@
     "timeline": {
       "type": "array",
       "maxItems": 50,
-      "description": "Added 2026-11-14 (ROUND2 §6). Notable moments: `started`, `resumed`, `discovery_decided`, `first_block`, `tier_change`, `paused`, `problem`, `repair_requested`, `repair_done`, `stop`, `stopped`, `finished`. At most 50 (the first 10 and the last 40).",
+      "description": "Added 2026-11-14. Notable moments: `started`, `resumed`, `discovery_decided`, `first_block`, `tier_change`, `paused`, `problem`, `repair_requested`, `repair_done`, `stop`, `stopped`, `finished`. At most 50 (the first 10 and the last 40).",
       "items": {
         "type": "object",
         "required": [
@@ -273,7 +273,7 @@
         "not_collected_by_reason",
         "sentence"
       ],
-      "description": "Added 2026-11-14 (ROUND2 §7). Target pages found = collected pages + the unextracted list; `records` may exceed `pages_collected` with variants; `progress` only while running (`estimate` until discovery has finished, or always for a crawl).",
+      "description": "Added 2026-11-14. Target pages found = collected pages + the unextracted list; `records` may exceed `pages_collected` with variants; `progress` only while running (`estimate` until discovery has finished, or always for a crawl).",
       "properties": {
         "target_pages_found": {
           "type": "integer",
@@ -337,7 +337,7 @@
         "not_collected",
         "change"
       ],
-      "description": "Added 2026-11-14 (ROUND2 §7). The previous completed run of the same site that was not a `max_records` trial (absent when there is none, or this run is a trial); `change` = this run minus that one; `warning` when records fell by more than the service's threshold (default 20%), saying whether fewer target pages were found or found pages were not collected.",
+      "description": "Added 2026-11-14. The previous completed run of the same site that was not a `max_records` trial (absent when there is none, or this run is a trial); `change` = this run minus that one; `warning` when records fell by more than the service's threshold (default 20%), saying whether fewer target pages were found or found pages were not collected.",
       "properties": {
         "run_id": {
           "$ref": "#/$defs/run_id"
@@ -385,7 +385,7 @@
         "url_count",
         "by_reason"
       ],
-      "description": "Added 2026-11-14 (A45). On a re-collect run: the run whose missed pages it collects again, the unextracted reasons taken, how many URLs (README 4.10).",
+      "description": "Added 2026-11-14. On a re-collect run: the run whose missed pages it collects again, the unextracted reasons taken, how many URLs (README 4.10).",
       "properties": {
         "run_id": {
           "$ref": "run_summary.schema.json#/$defs/run_id"
@@ -414,7 +414,7 @@
     },
     "recollected_by": {
       "type": "array",
-      "description": "Added 2026-11-14 (A45). Re-collect runs started from this run (absent when none).",
+      "description": "Added 2026-11-14. Re-collect runs started from this run (absent when none).",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -444,7 +444,7 @@
         "run_id",
         "message"
       ],
-      "description": "Added 2026-11-14 (A43). Only while `queued`: why the run has not started.",
+      "description": "Added 2026-11-14. Only while `queued`: why the run has not started.",
       "properties": {
         "code": {
           "type": "string",
@@ -475,7 +475,7 @@
         "preset",
         "text"
       ],
-      "description": "Added 2026-11-14 (A64, A63). The run's effective politeness: `preset` (`gentle`/`normal`/`fast`), `text` (\"normal: 2–5 s, 2 at a time, 30/min, page timeout 60 s\"), and `slowed_hosts` while the automatic slow-down has widened a host's delay: host → {`factor` (× the configured delay), `since`, `reason`} (README 4.15).",
+      "description": "Added 2026-11-14. The run's effective politeness: `preset` (`gentle`/`normal`/`fast`), `text` (\"normal: 2–5 s, 2 at a time, 30/min, page timeout 60 s\"), and `slowed_hosts` while the automatic slow-down has widened a host's delay: host → {`factor` (× the configured delay), `since`, `reason`} (README 4.15).",
       "properties": {
         "preset": {
           "type": "string",
@@ -643,7 +643,7 @@
         "site_unavailable",
         "stalled"
       ],
-      "description": "`site_unavailable` (added 2026-11-14, ROUND2 §6): a run of server errors, timeouts or network errors on a host, after growing pauses. `stalled` (added 2026-11-14, A44): no page finished and no record was written for twice `stall_seconds` while work waited."
+      "description": "`site_unavailable` (added 2026-11-14): a run of server errors, timeouts or network errors on a host, after growing pauses. `stalled` (added 2026-11-14): no page finished and no record was written for twice `stall_seconds` while work waited."
     },
     "template_status": {
       "type": "string",
@@ -665,7 +665,7 @@
         "no_template",
         "duplicate"
       ],
-      "description": "`duplicate` (added 2026-11-14, A46): a page whose canonical address was already collected in this run; not extracted, links not followed."
+      "description": "`duplicate` (added 2026-11-14): a page whose canonical address was already collected in this run; not extracted, links not followed."
     },
     "unextracted_reason": {
       "type": "string",
@@ -749,7 +749,7 @@
         "sitemap_outdated",
         "stalled"
       ],
-      "description": "Added 2026-11-14: `site_unavailable` (the run stopped, see `stop_reason`), `sitemap_outdated` (a high share of the sitemap's URLs answered 404; in `auto` discovery the link crawl was added). `stalled` (added 2026-11-14, A44): no progress for `stall_seconds`; the message says what is stuck."
+      "description": "Added 2026-11-14: `site_unavailable` (the run stopped, see `stop_reason`), `sitemap_outdated` (a high share of the sitemap's URLs answered 404; in `auto` discovery the link crawl was added). `stalled` (added 2026-11-14): no progress for `stall_seconds`; the message says what is stuck."
     },
     "run_error_code": {
       "type": "string",
@@ -768,7 +768,7 @@
         "trap_suspected",
         "dynamic_parameter_ignored"
       ],
-      "description": "`page_fetch_failed` (added 2026-11-13, severity `warning`): one entry per page that ended `fetch_failed`, the URL and the reason (HTTP status, timeout, a page that did not finish loading, a network error; no secrets). Added 2026-11-14 (severity `warning`): `canonical_ignored` (the run stopped trusting canonical addresses, A46), `trap_suspected` (a URL pattern stopped being followed, A47), `dynamic_parameter_ignored` (a query parameter learned as dynamic, A47)."
+      "description": "`page_fetch_failed` (added 2026-11-13, severity `warning`): one entry per page that ended `fetch_failed`, the URL and the reason (HTTP status, timeout, a page that did not finish loading, a network error; no secrets). Added 2026-11-14 (severity `warning`): `canonical_ignored` (the run stopped trusting canonical addresses), `trap_suspected` (a URL pattern stopped being followed), `dynamic_parameter_ignored` (a query parameter learned as dynamic)."
     },
     "run_error": {
       "type": "object",
@@ -897,7 +897,7 @@
             "scope": {
               "type": "integer",
               "minimum": 0,
-              "description": "Added 2026-11-14 (ROUND2 §1): links of walked pages not queued because they leave `crawl_include` / `stay_in_section` and do not look like target pages (counted per occurrence). Absent = 0."
+              "description": "Added 2026-11-14: links of walked pages not queued because they leave `crawl_include` / `stay_in_section` and do not look like target pages (counted per occurrence). Absent = 0."
             }
           }
         },
@@ -1007,12 +1007,12 @@
             "type": "integer",
             "minimum": 0
           },
-          "description": "Added 2026-11-14 (A46-A48). Links not followed, per rule (README 4.11), counted per occurrence; `canonical` counts duplicate pages. Absent or missing keys = 0."
+          "description": "Added 2026-11-14. Links not followed, per rule (README 4.11), counted per occurrence; `canonical` counts duplicate pages. Absent or missing keys = 0."
         },
         "soft_errors": {
           "type": "integer",
           "minimum": 0,
-          "description": "Added 2026-11-14 (A62). Answers with status 200 that were not the page (empty, truncated, an error or maintenance page, a page that lost its template's marks); each was retried like a server error (README 4.16)."
+          "description": "Added 2026-11-14. Answers with status 200 that were not the page (empty, truncated, an error or maintenance page, a page that lost its template's marks); each was retried like a server error (README 4.16)."
         },
         "soft_errors_by_reason": {
           "type": "object",
@@ -1020,12 +1020,12 @@
             "type": "integer",
             "minimum": 0
           },
-          "description": "Added 2026-11-14 (A62). `soft_errors` by reason: `empty`, `truncated`, `error_page`, `too_small`, `lost_template`."
+          "description": "Added 2026-11-14. `soft_errors` by reason: `empty`, `truncated`, `error_page`, `too_small`, `lost_template`."
         },
         "repairs_avoided": {
           "type": "integer",
           "minimum": 0,
-          "description": "Added 2026-11-14 (A62). Repairs not opened because the pages that triggered them were fine when fetched again (README 4.6)."
+          "description": "Added 2026-11-14. Repairs not opened because the pages that triggered them were fine when fetched again (README 4.6)."
         }
       }
     },
@@ -1382,7 +1382,7 @@
             "run_id",
             "message"
           ],
-          "description": "Added 2026-11-14 (A43). Only while `queued`: why the run has not started.",
+          "description": "Added 2026-11-14. Only while `queued`: why the run has not started.",
           "properties": {
             "code": {
               "type": "string",
@@ -1489,7 +1489,7 @@
               "price_not_extracted"
             ]
           },
-          "description": "Added 2026-11-14 (A54). With `reason: incomplete`: what the page shows that the active mapping does not read (README 4.5); `last_error` says it in plain words."
+          "description": "Added 2026-11-14. With `reason: incomplete`: what the page shows that the active mapping does not read (README 4.5); `last_error` says it in plain words."
         },
         "http_status": {
           "anyOf": [
@@ -1553,7 +1553,7 @@
         "profile",
         "platform"
       ],
-      "description": "Added 2026-11-14 (A45). Body of `POST /v1/runs/{run_id}/recollect` (header `Idempotency-Key` required). `profile` and `platform` as for `POST /v1/runs` (the parent's secrets are gone). `reasons`: which unextracted entries to collect again; default `fetch_failed`, `blocked`, `incomplete`, `no_template`, `template_failed`, `stopped`.",
+      "description": "Added 2026-11-14. Body of `POST /v1/runs/{run_id}/recollect` (header `Idempotency-Key` required). `profile` and `platform` as for `POST /v1/runs` (the parent's secrets are gone). `reasons`: which unextracted entries to collect again; default `fetch_failed`, `blocked`, `incomplete`, `no_template`, `template_failed`, `stopped`.",
       "properties": {
         "profile": {
           "allOf": [

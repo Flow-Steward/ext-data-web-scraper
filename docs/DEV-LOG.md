@@ -1256,3 +1256,25 @@ the extension does.
   host disk). The last run is 611 passed at 2cd5a4f (0.1.25); the first run on this tree
   is CI's (`.github/workflows/ci.yml`). The ZIP was packaged with
   `.github/scripts/package_extension.py` (standard library only).
+
+## 0.1.27 (2026-11-16): the service is built with Docker Compose
+
+The service repository `Flow-Steward/web-scraper-service` is public and publishes no image
+any more; users build it with its `docker-compose.yml` (release 0.2.1).
+
+- **Setup:** `listing.setup_summary` and setup step 1 of the guide: get
+  `docker-compose.yml` and `.env.example` from https://github.com/Flow-Steward/web-scraper-service,
+  fill `.env` (`WSS_API_TOKEN`, `WSS_SECRETS_KEY`, `FS_DOCKER_NETWORK`), `docker compose up -d`;
+  the service joins the platform's network as `http://web-scraper:8080`. Every GHCR image
+  name is gone (price columns, sale prices, the 0.1.24 and 0.1.26 notes, *Disk use and
+  clean-up*, troubleshooting). Guide page regenerated with
+  `.github/scripts/build_guide_page.py` (it reproduces the 0.1.26 page byte for byte).
+- **Contract copy:** `service_contract/` and `tests/contract_examples/get_health.response.json`
+  follow the public service contract 0.2.1 (descriptions without internal references;
+  `service.version` 0.2.1). No schema structure changed.
+- Templates and the extension's workflows carry 0.1.27 (no content change).
+- Tests: `tests/test_0_1_27.py` (versions moved here from `test_0_1_26.py`; the Compose
+  setup text, no image name). `pytest tests .github/tests` in `flow-steward-fs-audit:latest`,
+  `--network none`, the repository read-only (`dist/` on a tmpfs) and
+  `WEB_SCRAPER_CONTRACT_DIR` = the public 0.2.1 contract: 615 passed.
+- Version 0.1.27.

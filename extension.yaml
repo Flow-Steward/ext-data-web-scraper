@@ -2,7 +2,7 @@ manifest_version: 2
 lifecycle: {data_schema_version: 1, data_migrations: []}
 extension_id: flowsteward.web-scraper
 kind: tool_provider
-version: 0.1.26
+version: 0.1.27
 display_name: Web Scraper
 # The installed extension's card and detail page show this line (and the descriptor's
 # identity.description); the catalog shows listing.description.
@@ -38,7 +38,7 @@ listing:
 
     Limits: scrape only sites whose terms allow it. robots.txt is respected by default. The scraper does not log in to sites, and it cannot promise to get past CAPTCHAs or bot protection; a site that blocks it ends the run with that reason. The service caps a result at 99 MiB by default. Requires Flow Steward 0.9.18 or later.
   summary: Collect product and page data from websites into a CSV or JSON Lines file for your workflows, through a scraper service you run yourself.
-  setup_summary: Run the Web Scraper service in Docker with an API token and a secrets key. In a project, create a scraper profile with the service URL and token, approve its secrets, and add the Scraper events webhook so the service can report finished runs. A service on a private network also needs FS_ALLOW_PRIVATE_REMOTE_URLS=1 on the platform.
+  setup_summary: 'Run the Web Scraper service in Docker: get docker-compose.yml from https://github.com/Flow-Steward/web-scraper-service, fill .env (an API token and a secrets key), then docker compose up -d. In a project, create a scraper profile with the service URL and token, approve its secrets, and add the Scraper events webhook so the service can report finished runs. A service on a private network also needs FS_ALLOW_PRIVATE_REMOTE_URLS=1 on the platform.'
 features:
   - tool
   - action

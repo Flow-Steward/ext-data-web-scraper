@@ -266,7 +266,7 @@
     },
     "link_rules": {
       "type": "object",
-      "description": "Added 2026-11-14 (A48). The link rules a run of this config applies and their lists (README 4.11).",
+      "description": "Added 2026-11-14. The link rules a run of this config applies and their lists (README 4.11).",
       "required": [
         "rules"
       ],

@@ -89,13 +89,13 @@
     "ai_choose_fields": {
       "type": "boolean",
       "default": false,
-      "description": "Added 2026-11-14 (ROUND2 §5). Let the mapping agent choose the fields the sample pages really carry (beyond `fields`, guided by `fields_hint`); passed to it in mapping requests. `fields` stays the explicit way."
+      "description": "Added 2026-11-14. Let the mapping agent choose the fields the sample pages really carry (beyond `fields`, guided by `fields_hint`); passed to it in mapping requests. `fields` stays the explicit way."
     },
     "fields_hint": {
       "type": "string",
       "maxLength": 1000,
       "default": "",
-      "description": "Added 2026-11-14 (ROUND2 §5). A hint for `ai_choose_fields`, e.g. \"wine: vintage, type, bottle size, taste\"."
+      "description": "Added 2026-11-14. A hint for `ai_choose_fields`, e.g. \"wine: vintage, type, bottle size, taste\"."
     },
     "required_fields": {
       "type": "array",
@@ -151,12 +151,12 @@
         "$ref": "#/$defs/regex"
       },
       "maxItems": 50,
-      "description": "Added 2026-11-14 (ROUND2 §1) — where to walk. Regular expressions searched in the canonical URL: a page's links are followed only when the page matches one (the start page always); empty = the whole site. Links leaving the scope are queued only when they look like target pages (`url_include`, a mapping's `url_patterns`, URL shapes of pages already found to be targets) — or every link of a walked page when no target can be told by URL yet. `url_include` stays what to extract, `url_exclude` what never to fetch.",
+      "description": "Added 2026-11-14 — where to walk. Regular expressions searched in the canonical URL: a page's links are followed only when the page matches one (the start page always); empty = the whole site. Links leaving the scope are queued only when they look like target pages (`url_include`, a mapping's `url_patterns`, URL shapes of pages already found to be targets) — or every link of a walked page when no target can be told by URL yet. `url_include` stays what to extract, `url_exclude` what never to fetch.",
       "default": []
     },
     "stay_in_section": {
       "type": "boolean",
-      "description": "Added 2026-11-14 (ROUND2 §1). Walk only the start page's section: its URL and everything below its path (the start URL's pagination included); added to `crawl_include`. No effect on a site root.",
+      "description": "Added 2026-11-14. Walk only the start page's section: its URL and everything below its path (the start URL's pagination included); added to `crawl_include`. No effect on a site root.",
       "default": false
     },
     "link_rules_off": {
@@ -167,14 +167,14 @@
         "$ref": "#/$defs/link_rule"
       },
       "default": [],
-      "description": "Added 2026-11-14 (A46-A48). Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
+      "description": "Added 2026-11-14. Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
     },
     "trap_pattern_budget": {
       "type": "integer",
       "minimum": 0,
       "maximum": 100000,
       "default": 100,
-      "description": "Added 2026-11-14 (A47). Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
+      "description": "Added 2026-11-14. Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
     },
     "urls": {
       "type": "array",
@@ -233,7 +233,7 @@
     },
     "browser_os": {
       "$ref": "#/$defs/browser_os",
-      "description": "Added 2026-11-13; default `host` since rc-next5. Camoufox: the OS of the browser identity — `host` = the machine's own OS (Linux in the image), `windows`, `macos`, `linux`. On the owner's managed challenge only the host-OS identity passed. Part of the identity key: each value gets its own fingerprint per exit. Chromium always claims the host OS.",
+      "description": "Added 2026-11-13; default `host` since 2026-11-13. Camoufox: the OS of the browser identity — `host` = the machine's own OS (Linux in the image), `windows`, `macos`, `linux`. On a test managed challenge only the host-OS identity passed. Part of the identity key: each value gets its own fingerprint per exit. Chromium always claims the host OS.",
       "default": "host"
     },
     "canvas_noise": {
@@ -274,28 +274,28 @@
       "type": "number",
       "minimum": 0,
       "maximum": 60,
-      "description": "Lower bound of the random delay between two requests to the same host. Since 2026-11-14 (A64) the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
+      "description": "Lower bound of the random delay between two requests to the same host. Since 2026-11-14 the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
       "default": 2
     },
     "delay_max_seconds": {
       "type": "number",
       "minimum": 0,
       "maximum": 60,
-      "description": "Upper bound of that delay. Since 2026-11-14 (A64) the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
+      "description": "Upper bound of that delay. Since 2026-11-14 the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
       "default": 5
     },
     "max_concurrency": {
       "type": "integer",
       "minimum": 1,
       "maximum": 64,
-      "description": "Pages in progress at once. Browser crawls start at 1 and scale up to this. Since 2026-11-14 (A64) the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
+      "description": "Pages in progress at once. Browser crawls start at 1 and scale up to this. Since 2026-11-14 the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
       "default": 2
     },
     "max_requests_per_minute": {
       "type": "integer",
       "minimum": 1,
       "maximum": 6000,
-      "description": "Requests per minute for the whole job. Since 2026-11-14 (A64) the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
+      "description": "Requests per minute for the whole job. Since 2026-11-14 the default comes from `politeness` (the value shown is `normal`'s); a value set in a layer wins.",
       "default": 30
     },
     "max_retries": {
@@ -413,14 +413,14 @@
         "fast"
       ],
       "default": "normal",
-      "description": "Added 2026-11-14 (A64). A preset for the politeness fields not set in any layer: `gentle` = delay 5–10 s, `max_concurrency` 1, `max_requests_per_minute` 10, `page_timeout_seconds` 120; `normal` = 2–5 s, 2, 30, 60; `fast` = 0.5–1.5 s, 4, 120, 30. A field set explicitly wins; robots.txt `Crawl-delay` is always the floor; the automatic slow-down never goes faster than these values (README 4.15)."
+      "description": "Added 2026-11-14. A preset for the politeness fields not set in any layer: `gentle` = delay 5–10 s, `max_concurrency` 1, `max_requests_per_minute` 10, `page_timeout_seconds` 120; `normal` = 2–5 s, 2, 30, 60; `fast` = 0.5–1.5 s, 4, 120, 30. A field set explicitly wins; robots.txt `Crawl-delay` is always the floor; the automatic slow-down never goes faster than these values (README 4.15)."
     },
     "page_timeout_seconds": {
       "type": "integer",
       "minimum": 10,
       "maximum": 300,
       "default": 60,
-      "description": "Added 2026-11-14 (A63). How long one page may take: the HTTP request and the browser navigation of a run, and the fetches of `POST /v1/analyze` and `POST /v1/samples`. Default from `politeness` (`normal`: 60)."
+      "description": "Added 2026-11-14. How long one page may take: the HTTP request and the browser navigation of a run, and the fetches of `POST /v1/analyze` and `POST /v1/samples`. Default from `politeness` (`normal`: 60)."
     },
     "when_site_busy": {
       "type": "string",
@@ -429,7 +429,7 @@
         "queue"
       ],
       "default": "skip",
-      "description": "Added 2026-11-14 (A65). `POST /v1/runs` while a run of the same site is queued, running or stopping: `skip` (default) refuses the start with `409 site_busy` and stores nothing; `queue` stores the run and starts it when the other one ends (README 4.13)."
+      "description": "Added 2026-11-14. `POST /v1/runs` while a run of the same site is queued, running or stopping: `skip` (default) refuses the start with `409 site_busy` and stores nothing; `queue` stores the run and starts it when the other one ends (README 4.13)."
     }
   },
   "allOf": [
@@ -518,7 +518,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (ROUND2 §5). Let the mapping agent choose the fields the sample pages really carry (beyond `fields`, guided by `fields_hint`); passed to it in mapping requests. `fields` stays the explicit way."
+          "description": "Added 2026-11-14. Let the mapping agent choose the fields the sample pages really carry (beyond `fields`, guided by `fields_hint`); passed to it in mapping requests. `fields` stays the explicit way."
         },
         "fields_hint": {
           "anyOf": [
@@ -530,7 +530,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (ROUND2 §5). A hint for `ai_choose_fields`, e.g. \"wine: vintage, type, bottle size, taste\"."
+          "description": "Added 2026-11-14. A hint for `ai_choose_fields`, e.g. \"wine: vintage, type, bottle size, taste\"."
         },
         "required_fields": {
           "anyOf": [
@@ -621,7 +621,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (ROUND2 §1) — where to walk. Regular expressions searched in the canonical URL: a page's links are followed only when the page matches one (the start page always); empty = the whole site. Links leaving the scope are queued only when they look like target pages (`url_include`, a mapping's `url_patterns`, URL shapes of pages already found to be targets) — or every link of a walked page when no target can be told by URL yet. `url_include` stays what to extract, `url_exclude` what never to fetch."
+          "description": "Added 2026-11-14 — where to walk. Regular expressions searched in the canonical URL: a page's links are followed only when the page matches one (the start page always); empty = the whole site. Links leaving the scope are queued only when they look like target pages (`url_include`, a mapping's `url_patterns`, URL shapes of pages already found to be targets) — or every link of a walked page when no target can be told by URL yet. `url_include` stays what to extract, `url_exclude` what never to fetch."
         },
         "stay_in_section": {
           "anyOf": [
@@ -632,7 +632,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (ROUND2 §1). Walk only the start page's section: its URL and everything below its path (the start URL's pagination included); added to `crawl_include`. No effect on a site root."
+          "description": "Added 2026-11-14. Walk only the start page's section: its URL and everything below its path (the start URL's pagination included); added to `crawl_include`. No effect on a site root."
         },
         "link_rules_off": {
           "anyOf": [
@@ -643,13 +643,13 @@
               "items": {
                 "$ref": "#/$defs/link_rule"
               },
-              "description": "Added 2026-11-14 (A46-A48). Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
+              "description": "Added 2026-11-14. Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
             },
             {
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (A46-A48). Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
+          "description": "Added 2026-11-14. Link rules switched off for this run (README 4.11): `scheme`, `messenger_social`, `sensitive_path`, `action_params`, `file_extension`, `nofollow`, `facet_params`, `trap_budget`, `dynamic_params`, `canonical`. Empty = every rule on. Example: `[\"facet_params\"]` follows filter links."
         },
         "trap_pattern_budget": {
           "anyOf": [
@@ -657,13 +657,13 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 100000,
-              "description": "Added 2026-11-14 (A47). Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
+              "description": "Added 2026-11-14. Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
             },
             {
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (A47). Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
+          "description": "Added 2026-11-14. Trap budget: a URL pattern (first path segment, and query names) whose last N pages reached by links were no target page and led to no new target page stops being followed. 0 = off."
         },
         "urls": {
           "anyOf": [
@@ -771,7 +771,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-13; default `host` since rc-next5. Camoufox: the OS of the browser identity — `host` = the machine's own OS (Linux in the image), `windows`, `macos`, `linux`. On the owner's managed challenge only the host-OS identity passed. Part of the identity key: each value gets its own fingerprint per exit. Chromium always claims the host OS."
+          "description": "Added 2026-11-13; default `host` since 2026-11-13. Camoufox: the OS of the browser identity — `host` = the machine's own OS (Linux in the image), `windows`, `macos`, `linux`. On a test managed challenge only the host-OS identity passed. Part of the identity key: each value gets its own fingerprint per exit. Chromium always claims the host OS."
         },
         "canvas_noise": {
           "anyOf": [
@@ -1102,7 +1102,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (A64). A preset for the politeness fields not set in any layer: `gentle` = delay 5–10 s, `max_concurrency` 1, `max_requests_per_minute` 10, `page_timeout_seconds` 120; `normal` = 2–5 s, 2, 30, 60; `fast` = 0.5–1.5 s, 4, 120, 30. A field set explicitly wins; robots.txt `Crawl-delay` is always the floor; the automatic slow-down never goes faster than these values (README 4.15)."
+          "description": "Added 2026-11-14. A preset for the politeness fields not set in any layer: `gentle` = delay 5–10 s, `max_concurrency` 1, `max_requests_per_minute` 10, `page_timeout_seconds` 120; `normal` = 2–5 s, 2, 30, 60; `fast` = 0.5–1.5 s, 4, 120, 30. A field set explicitly wins; robots.txt `Crawl-delay` is always the floor; the automatic slow-down never goes faster than these values (README 4.15)."
         },
         "page_timeout_seconds": {
           "anyOf": [
@@ -1115,7 +1115,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (A63). How long one page may take: the HTTP request and the browser navigation of a run, and the fetches of `POST /v1/analyze` and `POST /v1/samples`. Default from `politeness` (`normal`: 60)."
+          "description": "Added 2026-11-14. How long one page may take: the HTTP request and the browser navigation of a run, and the fetches of `POST /v1/analyze` and `POST /v1/samples`. Default from `politeness` (`normal`: 60)."
         },
         "when_site_busy": {
           "anyOf": [
@@ -1130,7 +1130,7 @@
               "$ref": "#/$defs/unset"
             }
           ],
-          "description": "Added 2026-11-14 (A65). `POST /v1/runs` while a run of the same site is queued, running or stopping: `skip` (default) refuses the start with `409 site_busy` and stores nothing; `queue` stores the run and starts it when the other one ends (README 4.13)."
+          "description": "Added 2026-11-14. `POST /v1/runs` while a run of the same site is queued, running or stopping: `skip` (default) refuses the start with `409 site_busy` and stores nothing; `queue` stores the run and starts it when the other one ends (README 4.13)."
         }
       },
       "description": "One unmerged layer: run inputs, `Site settings` or the profile's `defaults`. A missing field, `null`, an empty string, an empty array and an empty object all mean \"not set in this layer\"."
@@ -1728,7 +1728,7 @@
               "minimum": 0,
               "maximum": 86400,
               "default": 900,
-              "description": "Added 2026-11-14 (A44). No progress this long: a `stalled` problem; twice as long: the run stops `stalled`. 0 = off (`WSS_STALL_SECONDS`)."
+              "description": "Added 2026-11-14. No progress this long: a `stalled` problem; twice as long: the run stops `stalled`. 0 = off (`WSS_STALL_SECONDS`)."
             }
           }
         },
@@ -1904,7 +1904,7 @@
         "dynamic_params",
         "canonical"
       ],
-      "description": "Added 2026-11-14 (A46-A48). A link rule (README 4.11)."
+      "description": "Added 2026-11-14. A link rule (README 4.11)."
     }
   }
 }

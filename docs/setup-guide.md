@@ -107,8 +107,7 @@ The CSV holds the same records as `result.jsonl`, one row per record:
 A service older than 2026-11-14 writes no CSV; then **CSV available?** skips the
 CSV step and only `result_file` is there.
 
-With the service image `ghcr.io/flow-steward/web-scraper-service:0.2.0` (or later), a
-run whose mapping has a price field also has the columns `price_status`, `price_max`,
+With web-scraper-service 0.2.0 or later, a run whose mapping has a price field also has the columns `price_status`, `price_max`,
 `currency_from_default`, `regular_price` and `on_sale` after `extracted_at` (see
 *Prices in the result*).
 
@@ -134,7 +133,7 @@ from the default the mapping set. A record without a price gets no default curre
 Steps that compare or set prices must skip `on_request` and `missing` records instead
 of reading their empty price as 0. A variant record that has its own price is `shown`.
 
-**A sale** (service image `ghcr.io/flow-steward/web-scraper-service:0.2.0` on).
+**A sale** (web-scraper-service 0.2.0 on).
 `data.price` is always the **current** price, never the struck-through one. When the page or the variant shows a sale, the record also
 has `regular_price` (the old price) and `on_sale: true`, at the top of the record and as
 CSV columns:
@@ -159,25 +158,31 @@ price on a sale page (*price_is_old_price*); the AI then corrects it.
 
 Do these once per Flow Steward project, in this order.
 
-1. **Run the scraper service** (the image `ghcr.io/flow-steward/web-scraper-service:0.2.0`,
-   linux/amd64 or linux/arm64; about 2 GB of memory per running browser job). Environment:
-   - `WSS_API_TOKEN` — required; a long random value. You type it into the profile.
-   - `WSS_SECRETS_KEY` — required to start runs (32 bytes URL-safe base64, or a
-     passphrase of 16+ characters); without it starts fail with
-     `secrets_key_unavailable`.
-   - `WSS_DATA_DIR` — the one volume (default `/data`); mount it.
+1. **Run the scraper service** with Docker Compose. Get `docker-compose.yml` and
+   `.env.example` from https://github.com/Flow-Steward/web-scraper-service (its README,
+   *Run with Docker Compose*), save `.env.example` as `.env` next to it, fill `.env`,
+   then run `docker compose up -d`. The first start builds the image on your machine
+   from the service's public source: about 10–15 minutes and about 6 GB of disk
+   (linux/amd64 or linux/arm64; about 2 GB of memory per running browser job). `.env`:
+   - `WSS_API_TOKEN` — required; a long random value (`openssl rand -hex 32`). You
+     type it into the profile.
+   - `WSS_SECRETS_KEY` — required to start runs (`openssl rand -hex 32`); without it
+     starts fail with `secrets_key_unavailable`. Keep a copy outside the server.
+   - `FS_DOCKER_NETWORK` — the platform's Docker network, `<compose project>_default`
+     (default `flow-steward_default`). The service joins it and the platform reaches it
+     at `http://web-scraper:8080`.
    - `WSS_ALLOW_CHALLENGE_CLICK=1` allows the checkbox click on protected sites;
      `WSS_ALLOW_SOLVERS=1` allows paid solvers; `WSS_ALLOW_ROBOTS_OVERRIDE=1` allows
      ignoring robots.txt. All are off by default; use them only where you may.
    - Optional limits `WSS_LIMIT_<NAME>`, e.g. `WSS_LIMIT_MAX_PAGES_PER_JOB`.
-   - Put it on the platform's Docker network with a container name, e.g.
-     `web-scraper` (it listens on port 8080).
    - A service on a private address (Docker network, 10.x, 192.168.x) needs
-     `FS_ALLOW_PRIVATE_REMOTE_URLS=1` in the platform's environment.
-   - Check: `GET <service URL>/health` with `Authorization: Bearer <token>` answers
-     200.
-   - Without Compose, start it with the `docker run` command under *Disk use and
-     clean-up*, and keep its log options.
+     `FS_ALLOW_PRIVATE_REMOTE_URLS=1` in the platform's environment
+     (`./flow-steward config set FS_ALLOW_PRIVATE_REMOTE_URLS=1`, then
+     `./flow-steward config apply`).
+   - Check: `docker compose ps` shows the service *healthy*; `GET <service URL>/health`
+     with `Authorization: Bearer <token>` answers 200.
+   - The service's README also describes a published host port instead of the
+     platform's network, and updating to a new release.
 2. **Install the extension** (Extensions → Install extension from file → the zip),
    enable it.
 3. **Create a scraper profile** on the page **Profiles**:
@@ -804,23 +809,13 @@ itself; the ages are its settings `WSS_RETENTION_*`:
 - **Database** — never removed. It grows and shrinks only when compacted.
 - **Browser identities** — never removed.
 - **The container log** — kept by Docker, not by the service. On a Linux server
-  Docker's default log grows without end, so start the container with the log
-  options below.
+  Docker's default log grows without end; the service's `docker-compose.yml` rotates
+  it.
 
-The service's `docker run` without Compose (from its README):
-
-```
-docker run -d --name web-scraper --restart unless-stopped \
-  --shm-size 1g --memory 3g --stop-timeout 90 \
-  --log-driver json-file --log-opt max-size=20m --log-opt max-file=5 \
-  -e WSS_API_TOKEN -e WSS_SECRETS_KEY \
-  -v web-scraper-data:/data -p 127.0.0.1:8080:8080 \
-  web-scraper-service:server
-```
-
-`--log-opt max-size=20m --log-opt max-file=5` keeps at most 100 MB of log. A log
-option takes effect only when the container is created again (`docker rm`, then
-`docker run`).
+The service's `docker-compose.yml` keeps at most 5 log files of 20 MB (100 MB). Without
+Compose, pass `--log-driver json-file --log-opt max-size=20m --log-opt max-file=5` to
+`docker run`. A log option takes effect only when the container is created again
+(`docker compose up -d` with the new file, or `docker rm`, then `docker run`).
 
 **The Service page** shows by itself, for the profile chosen at the top: the size of each
 part, runs by state, the automatic clean-up ages, free disk space and the last
@@ -945,7 +940,7 @@ cleans up; run it with **Dry run only** first.
   dry run** and **Clean up now** (see *Disk use and clean-up*). Check the container's
   log options too.
 - **`service_route_missing` on the Service page** — the service is older than the
-  storage routes; update its image.
+  storage routes; update it (its README, *Update*).
 - **The Scraper events job's Result panel is empty** — the workflow was imported
   before 0.1.17; import the template again.
 - **No `result_csv` in the Result panel** — the service is older than 2026-11-14, or
@@ -976,14 +971,15 @@ a site** and **Scraper events**. An older copy of Scrape a site keeps working: i
 get their files in Scraper events as before. 0.1.24 lets your own workflows call
 **Scrape a site** with Invoke, adds **Politeness**, **Page timeout** and **When the
 site is busy** to the run form, ends a start on a busy site *Skipped* instead of
-failed, and shows sale prices (`regular_price`, `on_sale`); it needs the Web Scraper
-service image `ghcr.io/flow-steward/web-scraper-service:0.2.0` for the new fields. The
+failed, and shows sale prices (`regular_price`, `on_sale`); it needs
+web-scraper-service 0.2.0 or later for the new fields. The
 extension's own workflows change by themselves; a copy of **Scrape a site** needs a new
 import for these. 0.1.25 changes texts only: a
 queued start says it is queued, Run detail compares a run with the previous one only
 after it ends, and a failed *Fetch samples* gives the service's explanation once. The
 templates did not change, so the copies you imported keep working. 0.1.26 changes links
-and texts only: the support and website links point to the extension's repository, and
-this guide names the published service image
-`ghcr.io/flow-steward/web-scraper-service:0.2.0`. The templates did not change, so the
-copies you imported keep working.
+and texts only: the support and website links point to the extension's repository. The
+templates did not change, so the copies you imported keep working. 0.1.27 changes texts
+only: setup step 1 builds the service with Docker Compose from its public repository
+https://github.com/Flow-Steward/web-scraper-service; no prebuilt service image is
+published. The templates did not change, so the copies you imported keep working.

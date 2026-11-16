@@ -67,7 +67,7 @@
         "boolean",
         "spec_table"
       ],
-      "description": "`spec_table` (added 2026-11-14, ROUND2 §5): a specification table as an object name → value (from a `spec_table` source, or `jsonld`/`microdata` `additionalProperty` PropertyValues)."
+      "description": "`spec_table` (added 2026-11-14): a specification table as an object name → value (from a `spec_table` source, or `jsonld`/`microdata` `additionalProperty` PropertyValues)."
     },
     "source_kind": {
       "type": "string",
@@ -103,7 +103,7 @@
         "srcset_largest",
         "join"
       ],
-      "description": "Added 2026-11-14 (ROUND2 §4): `regex_replace` (`pattern`, `replacement`, `count`), `srcset_largest` (the largest candidate of a `srcset`), `join` (`separator`: all matches of the source as one string)."
+      "description": "Added 2026-11-14: `regex_replace` (`pattern`, `replacement`, `count`), `srcset_largest` (the largest candidate of a `srcset`), `join` (`separator`: all matches of the source as one string)."
     },
     "decimal_separator": {
       "type": "string",
@@ -688,7 +688,7 @@
       "required": [
         "sources"
       ],
-      "description": "Added 2026-11-13 (ROUND2 §2). One record per variant of the page: the first source that yields at least one variant wins; every variant gets the page's fields, with its own values over them (`fields`). Without variants the page stays one record. README 6.1.",
+      "description": "Added 2026-11-13. One record per variant of the page: the first source that yields at least one variant wins; every variant gets the page's fields, with its own values over them (`fields`). Without variants the page stays one record. README 6.1.",
       "properties": {
         "sources": {
           "type": "array",

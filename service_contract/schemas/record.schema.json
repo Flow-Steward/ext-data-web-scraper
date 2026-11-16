@@ -25,7 +25,7 @@
           "$ref": "job_config.schema.json#/$defs/http_url"
         }
       ],
-      "description": "Canonical URL of the page (README \"Canonical URL\"). Since 2026-11-14 (A46): the page's declared canonical address (`<link rel=\"canonical\">` or the `Link` header, same site) when the run trusts canonicals; the address loaded is then `requested_url`."
+      "description": "Canonical URL of the page (README \"Canonical URL\"). Since 2026-11-14: the page's declared canonical address (`<link rel=\"canonical\">` or the `Link` header, same site) when the run trusts canonicals; the address loaded is then `requested_url`."
     },
     "requested_url": {
       "allOf": [
@@ -65,7 +65,7 @@
         "options"
       ],
       "additionalProperties": false,
-      "description": "Added 2026-11-13 (ROUND2 §2). Present on a variant's record: its position among the page's variants (`index` = `item_index`), how many the page has, the variant source kind, the option values (name → value, the shop's words) and the shop's variant id when it has one.",
+      "description": "Added 2026-11-13. Present on a variant's record: its position among the page's variants (`index` = `item_index`), how many the page has, the variant source kind, the option values (name → value, the shop's words) and the shop's variant id when it has one.",
       "properties": {
         "index": {
           "type": "integer",
@@ -102,25 +102,25 @@
     },
     "price_status": {
       "$ref": "#/$defs/price_status",
-      "description": "Added 2026-11-14 (A54). Present on every record of a template with a field of type `price` (the field named `price`, else the first `price` field): `shown` — the field has a value; `range` — the page showed a range, the field holds its lowest value and `price_max` the highest; `on_request` — no price and the page says it is given on request (an empty price block with request wording, or a schema.org offer without a price); `missing` — no price and no sign why (README 6.5)."
+      "description": "Added 2026-11-14. Present on every record of a template with a field of type `price` (the field named `price`, else the first `price` field): `shown` — the field has a value; `range` — the page showed a range, the field holds its lowest value and `price_max` the highest; `on_request` — no price and the page says it is given on request (an empty price block with request wording, or a schema.org offer without a price); `missing` — no price and no sign why (README 6.5)."
     },
     "price_max": {
       "type": "number",
-      "description": "Added 2026-11-14 (A54). With `price_status: range` only: the highest value of the range."
+      "description": "Added 2026-11-14. With `price_status: range` only: the highest value of the range."
     },
     "regular_price": {
       "type": "number",
-      "description": "Added 2026-11-14 (A54+). Present when the page (or the variant) shows a sale: the old, struck-through or regular price; `data`'s price field holds the current price. From a variant's own regular price (WooCommerce `display_regular_price`, Shopify `compare_at_price`, Store API `regular_price`), else schema.org `priceSpecification` with `priceType` StrikethroughPrice/ListPrice, else the struck-through amount of the product's price block (`del`, `s`, `strike`, line-through, `old-price`, `price-old`, `was`, `compare-at` …) — when this record's price is the page's current price (README 6.5)."
+      "description": "Added 2026-11-14. Present when the page (or the variant) shows a sale: the old, struck-through or regular price; `data`'s price field holds the current price. From a variant's own regular price (WooCommerce `display_regular_price`, Shopify `compare_at_price`, Store API `regular_price`), else schema.org `priceSpecification` with `priceType` StrikethroughPrice/ListPrice, else the struck-through amount of the product's price block (`del`, `s`, `strike`, line-through, `old-price`, `price-old`, `was`, `compare-at` …) — when this record's price is the page's current price (README 6.5)."
     },
     "on_sale": {
       "type": "boolean",
       "const": true,
-      "description": "Added 2026-11-14 (A54+). Present (true) with `regular_price`."
+      "description": "Added 2026-11-14. Present (true) with `regular_price`."
     },
     "currency_from_default": {
       "type": "boolean",
       "const": true,
-      "description": "Added 2026-11-14 (A54). Present (true) when a `currency` field holds the `default_currency` of its `currency` transform because the page names no currency. A default currency on a record without a price is dropped (the field is `null`); when the page names a currency elsewhere (schema.org `priceCurrency`, `product:price:currency`, a price element), that one is used instead (README 6.5)."
+      "description": "Added 2026-11-14. Present (true) when a `currency` field holds the `default_currency` of its `currency` transform because the page names no currency. A default currency on a record without a price is dropped (the field is `null`); when the page names a currency elsewhere (schema.org `priceCurrency`, `product:price:currency`, a price element), that one is used instead (README 6.5)."
     },
     "extracted_at": {
       "$ref": "run_summary.schema.json#/$defs/timestamp"
