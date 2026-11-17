@@ -1,7 +1,7 @@
 # Generated from templates/scraper_events.bundle.json by .github/scripts/extension_workflows.py; edit the
 # template JSON. The extension's read-only workflow (connection slot, hooks).
 workflow_id: scraper_events
-version: 0.1.28
+version: 0.1.29
 display_name: Scraper events
 description: 'Receives the Web Scraper service''s signed webhook. A finished or failed run wakes the Scrape
   a site job that waits for it (0.1.23 and later), which stores the files itself; a run started otherwise

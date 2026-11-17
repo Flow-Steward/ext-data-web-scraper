@@ -6,3 +6,4 @@ pages:
   - ref: pages/runs.yaml
   - ref: pages/run_detail.yaml
   - ref: pages/overview.yaml
+  - ref: pages/support.yaml

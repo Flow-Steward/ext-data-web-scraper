@@ -84,6 +84,7 @@ def test_pages_and_ids():
         "runs",
         "run_detail",
         "overview",
+        "support",
     ]
     ids = [c["component_id"] for _p, c in _components()]
     assert len(ids) == len(set(ids))

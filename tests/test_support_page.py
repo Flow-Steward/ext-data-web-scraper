@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import posixpath
 import zipfile
 from pathlib import Path
 
@@ -32,7 +33,9 @@ def _assert_support(load):
     assert support["project_scoped"] is False
     assert "connection" not in support
     components = [
-        load((page_path.parent / item["ref"]).as_posix()) if "ref" in item else item
+        load(posixpath.normpath((page_path.parent / item["ref"]).as_posix()))
+        if "ref" in item
+        else item
         for item in support["components"]
     ]
     assert components and all(component["type"] == "markdown" for component in components)
