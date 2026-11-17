@@ -3,7 +3,7 @@
   "kind": "workflow_bundle",
   "metadata": {
     "source": "flowsteward.web-scraper",
-    "source_version": "0.1.27",
+    "source_version": "0.1.28",
     "template_id": "scraper_events",
     "description": "Template 'Scraper events' of the Web Scraper extension (signed webhook target).",
     "contains_secrets": false,
@@ -12,7 +12,7 @@
   "workflows": [
     {
       "workflow_id": "scraper_events",
-      "version": "0.1.27",
+      "version": "0.1.28",
       "display_name": "Scraper events",
       "description": "Receives the Web Scraper service's signed webhook. A finished or failed run wakes the Scrape a site job that waits for it (0.1.23 and later), which stores the files itself; a run started otherwise gets its result file stored here. Also handles mapping_required (repairs the mapping with AI), problem and run_failed.",
       "enabled": false,

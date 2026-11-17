@@ -1,6 +1,6 @@
 """0.1.26: links and texts only. The support and website links point to the extension's
 repository Flow-Steward/ext-data-web-scraper; the guide names no internal image tags.
-(The version tests moved to test_0_1_27.py; the guide's service setup changed in 0.1.27.)
+(The version tests moved to test_0_1_28.py; the guide's service setup changed in 0.1.27.)
 """
 
 from __future__ import annotations
