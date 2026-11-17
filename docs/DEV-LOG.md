@@ -1278,3 +1278,16 @@ any more; users build it with its `docker-compose.yml` (release 0.2.1).
   `--network none`, the repository read-only (`dist/` on a tmpfs) and
   `WEB_SCRAPER_CONTRACT_DIR` = the public 0.2.1 contract: 615 passed.
 - Version 0.1.27.
+
+## 0.1.28 (2026-11-17): refresh the development JSON Schema validator
+
+- Update the CI and offline development requirement from jsonschema 4.23.0
+  (unbounded in requirements-dev.txt) to 4.26.0. Existing Draft 2020-12 tests
+  cover connection-form saves, schema defaults and the fake scraper-service
+  contract. jsonschema remains a development dependency; runtime handlers and
+  service contracts are unchanged, with no runtime wheel closure to update.
+- Keep the extension manifest, descriptor, bundled workflow versions and template
+  source versions synchronized at 0.1.28. Imported workflow behavior is unchanged.
+- Record provenance for the existing Flow Steward wave icon in BRANDING.md;
+  retain its bytes unchanged.
+- Verification is performed by the repository's GitHub CI and release workflows.
