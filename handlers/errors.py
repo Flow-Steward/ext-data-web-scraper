@@ -232,6 +232,7 @@ FIELD_CODE_TEXT: dict[str, str] = {
     "invalid_value": "has a value the service does not accept",
     "unknown_field": "is not a known setting",
     "pattern_invalid": "is not a valid regular expression",
+    "pattern_timeout": "exceeded the URL regular-expression execution budget; simplify the configured pattern",
     "limit_exceeded": "is above the service limit",
     "browser_not_available": "names a browser that is not installed in the scraper service",
     "target_pages_guessed": (
