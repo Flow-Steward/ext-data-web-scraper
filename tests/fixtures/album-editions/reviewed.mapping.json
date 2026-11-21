@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "template_id": "album",
+  "match": {
+    "selector": "h1"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "text",
+      "required": true,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": "h1",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "sku",
+      "type": "text",
+      "required": true,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-sku",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "format",
+      "type": "text",
+      "required": true,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-format",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "required": false,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-description",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "tracklist",
+      "type": "text",
+      "required": false,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-tracklist",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "type": "text",
+      "required": false,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-label",
+          "extract": "text"
+        }
+      ]
+    },
+    {
+      "name": "packaging",
+      "type": "text",
+      "required": false,
+      "sources": [
+        {
+          "kind": "css",
+          "selector": ".page-packaging",
+          "extract": "text"
+        }
+      ]
+    }
+  ],
+  "variants": {
+    "sources": [
+      {
+        "kind": "embedded_json",
+        "selector": "div#editions",
+        "path": "editions",
+        "format": "generic",
+        "attribute": "data-editions"
+      }
+    ],
+    "fields": [
+      {
+        "name": "sku",
+        "path": "sku"
+      },
+      {
+        "name": "format",
+        "path": "raw.format"
+      },
+      {
+        "name": "description",
+        "selector_template": "[data-edition=\"{id}\"] .description",
+        "extract": "text",
+        "fallback_to_page": false
+      },
+      {
+        "name": "tracklist",
+        "selector_template": "[data-edition=\"{id}\"] .tracklist",
+        "extract": "text",
+        "fallback_to_page": false
+      },
+      {
+        "name": "label",
+        "selector_template": "[data-edition=\"{id}\"] .label",
+        "extract": "text",
+        "fallback_to_page": false
+      },
+      {
+        "name": "packaging",
+        "selector_template": "[data-edition=\"{id}\"] .packaging",
+        "extract": "text",
+        "fallback_to_page": false
+      }
+    ]
+  }
+}

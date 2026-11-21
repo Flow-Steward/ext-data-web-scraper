@@ -1,0 +1,9 @@
+[
+  {"title":"Imaginary album","sku":"ALB-CD","format":"CD","description":"cd description","tracklist":"cd tracklist","label":"cd label","packaging":"cd packaging"},
+  {"title":"Imaginary album","sku":"ALB-LP","format":"LP","description":"lp description","tracklist":"lp tracklist","label":"lp label","packaging":"lp packaging"},
+  {"title":"Imaginary album","sku":"ALB-DVD","format":"DVD","description":"dvd description","tracklist":"dvd tracklist","label":"dvd label","packaging":null},
+  {"title":"Imaginary album","sku":"ALB-DELUXE","format":"CD","description":"deluxe description","tracklist":"deluxe tracklist","label":"deluxe label","packaging":"deluxe packaging"},
+  {"title":"Imaginary album","sku":"ALB-RED","format":"LP","description":"red description","tracklist":"red tracklist","label":null,"packaging":"red packaging"},
+  {"title":"Imaginary album","sku":"ALB-LIVE","format":"DVD","description":"live description","tracklist":null,"label":"live label","packaging":"live packaging"},
+  {"title":"Imaginary album","sku":"ALB-ARCHIVE","format":"CD","description":null,"tracklist":"archive tracklist","label":"archive label","packaging":"archive packaging"}
+]
