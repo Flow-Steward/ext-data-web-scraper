@@ -167,10 +167,13 @@ def _variant_problems(label: str, variants: Any) -> list[str]:
         name = as_text(field.get("name")) or "a variant field"
         if not field.get("name"):
             problems.append(f"{label}: a variants.fields entry has no name")
-        if bool(field.get("path")) == bool(field.get("option")):
+        if (
+            sum(bool(field.get(key)) for key in ("path", "option", "selector_template"))
+            != 1
+        ):
             problems.append(
                 f"{label}: variants field {name} needs exactly one of path (price, sku, image, "
-                "availability, weight, raw.<path>) or option (the option's name)"
+                "availability, weight, raw.<path>), option (the option's name), or selector_template"
             )
     return problems
 
@@ -324,7 +327,11 @@ def variant_warnings(templates: list[dict[str, Any]], threshold: float) -> list[
         if "variant_count" not in template:
             continue
         template_id = template["template_id"]
-        if template.get("matched_samples") and not template["variant_count"]:
+        if (
+            template.get("matched_samples")
+            and not template["variant_count"]
+            and not template.get("samples_with_variants")
+        ):
             out.append(
                 {
                     "kind": "variants_not_found",
@@ -335,6 +342,8 @@ def variant_warnings(templates: list[dict[str, Any]], threshold: float) -> list[
                     "no variants.",
                 }
             )
+        if not template["variant_count"]:
+            continue  # no emitted variants means there are no field values to measure
         for row in template["variant_fields"]:
             try:
                 rate = float(row.get("fill_rate"))
@@ -409,6 +418,7 @@ def _agent_sample(sample: dict[str, Any], limit: int = SAMPLE_HTML_FOR_AGENT) ->
         # ROUND2 §2/§3: the distilled HTML drops scripts and attributes, so the
         # variant data and microdata the service found travel separately.
         "variant_sources": _variant_sources(sample),
+        "variant_candidates": _variant_candidates(sample),
         "microdata": _bounded_list(as_list(sample.get("microdata")), MICRODATA_FOR_AGENT),
     }
 
@@ -441,6 +451,31 @@ def _variant_sources(sample: dict[str, Any]) -> list[dict[str, Any]]:
             "raw_keys": as_list(row.get("raw_keys"))[:40],
         }
         for row in (as_dict(r) for r in as_list(sample.get("variant_sources")))
+        if as_dict(row.get("source"))
+    ]
+    return _bounded_list(rows, VARIANT_SOURCES_FOR_AGENT)
+
+
+def _variant_candidates(sample: dict[str, Any]) -> list[dict[str, Any]]:
+    """Optional raw evidence stays distinct from confirmed variant sources."""
+    rows = [
+        {
+            "source": as_dict(row.get("source")),
+            "count": row.get("count"),
+            "raw_examples": as_list(row.get("raw_examples"))[:2],
+            "raw_paths": as_list(row.get("raw_paths"))[:40],
+            "evidence": as_text(row.get("evidence"))[:1000],
+            **(
+                {
+                    "parent_count": row.get("parent_count"),
+                    "parent_examples": as_list(row.get("parent_examples"))[:2],
+                    "context_paths": as_list(row.get("context_paths"))[:40],
+                }
+                if as_text(as_dict(row.get("source")).get("children_path"))
+                else {}
+            ),
+        }
+        for row in (as_dict(r) for r in as_list(sample.get("variant_candidates"))[:12])
         if as_dict(row.get("source"))
     ]
     return _bounded_list(rows, VARIANT_SOURCES_FOR_AGENT)
@@ -834,7 +869,48 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
                 "message": "No template matches these samples: add a template or widen a match rule.",
             }
         )
-    passed = bool(answer.get("passed")) and not any(t["gaps"] for t in templates_out)
+    samples_out = [_sample_result(as_dict(s)) for s in as_list(answer.get("samples"))]
+    sample_failures: list[dict[str, Any]] = []
+    mappings_by_template = {mapping["template_id"]: mapping for mapping in mappings}
+    for sample in samples_out:
+        template_id = as_text(sample.get("template_id"))
+        mapping = mappings_by_template.get(template_id, {})
+        inclusion_fields = {
+            condition["field"] for condition in mapping.get("record_filter") or []
+        }
+        for name in dict.fromkeys(
+            as_text(field) for field in sample["missing_required"]
+        ):
+            if not name:
+                continue
+            reason = (
+                "the value needed by the inclusion filter is missing, so inclusion cannot be decided"
+                if name in inclusion_fields
+                else "the required value was not extracted"
+            )
+            hint = (
+                "; for variant fields, use a normalized contract path or raw.<path> for a source-specific value; inspect the sample's raw examples and field paths"
+                if mapping.get("variants")
+                else "; check the field's sources against this sample"
+            )
+            sample_failures.append(
+                {
+                    "kind": "missing_required",
+                    "sample_id": sample["sample_id"],
+                    "template_id": template_id,
+                    "field": name,
+                    "message": bounded(
+                        f"sample {sample['sample_id']}, field {name}: {reason}{hint}",
+                        600,
+                    ),
+                }
+            )
+    failures += sample_failures
+    passed = (
+        bool(answer.get("passed"))
+        and not sample_failures
+        and not any(t["gaps"] for t in templates_out)
+    )
     missing = variants_missing(
         answer, mappings, [as_text(x) for x in as_list(ctx.input.get("variant_sample_ids"))]
     )
@@ -852,12 +928,12 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
         for row in field_results
     ] + [line for line in (_variant_line(t) for t in templates_out) if line]
     lines += [f"Not passed: {row['message']}" for row in missing]
+    lines += [f"Not passed: {row['message']}" for row in sample_failures]
     lines += [
         f"Not passed: {template['template_id']}: {gap}"
         for template in templates_out
         for gap in template["gaps"]
     ]
-    samples_out = [_sample_result(as_dict(s)) for s in as_list(answer.get("samples"))]
     prices = price_status_text(samples_out)
     if prices:
         lines.append(prices)

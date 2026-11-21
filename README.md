@@ -96,3 +96,22 @@ bundled workflows offline against it.
 Package with `python .github/scripts/package_extension.py` (writes
 `dist/flowsteward.web-scraper-<version>.zip`). `docs/DEV-LOG.md` records the
 decisions taken while building it.
+
+## Generic catalogue development candidate
+
+This branch is an unreleased development candidate. It adds bounded discovery through
+intermediate pages and JavaScript listings, typed record inclusion filters and
+per-variant DOM fields. Discovery never relies on a maintained product URL list.
+Mappings still describe each site's observed data and selectors. Required values
+are checked on included variants; unknown inclusion inputs report incomplete
+extraction. Optional missing values can remain null without inheriting a parent
+value. Navigation limits and unsupported controls must be reviewed before claiming
+complete catalogue coverage. Test and deployment evidence is separate from a release.
+
+The unreleased nested-variant candidate requires a matching service contract.
+Embedded JSON sources can select parent editions with `path` and their packages
+with `children_path`; fields read `raw.<path>` for a package and
+`parent.raw.<path>` for its corresponding edition. The mapping author receives
+bounded parent/child examples and the complete bundled schema. Original stock
+wording and missing quantities must remain distinct; unknown stock is not an
+automatic exclusion unless the operator explicitly requests a stock filter.

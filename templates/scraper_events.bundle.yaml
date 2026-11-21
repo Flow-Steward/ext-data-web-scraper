@@ -4,14 +4,14 @@ schema_version: platform.workflow_bundle.v2
 kind: workflow_bundle
 metadata:
   source: flowsteward.web-scraper
-  source_version: 0.1.29
+  source_version: 0.1.30-dev.6
   template_id: scraper_events
   description: Template 'Scraper events' of the Web Scraper extension (signed webhook target).
   contains_secrets: false
   contains_connection_ids: false
 workflows:
 - workflow_id: scraper_events
-  version: 0.1.29
+  version: 0.1.30-dev.6
   display_name: Scraper events
   description: Receives the Web Scraper service's signed webhook. A finished or failed run wakes the Scrape
     a site job that waits for it (0.1.23 and later), which stores the files itself; a run started otherwise

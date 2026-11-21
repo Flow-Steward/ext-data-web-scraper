@@ -54,8 +54,8 @@ def test_the_budget_holds_for_twenty_large_samples():
     text, report = render_samples("x.example", rows)
     assert len(text) <= SAMPLES_FILE_MAX_CHARS
     assert all(r["html_chars"] == html_budget(20) and r["html_shortened"] for r in report)
-    assert html_budget(20) == 19660 and html_budget(4) == 65536
-    assert "### JSON-LD (shortened)" in text and len(text) > 20 * (19660 + JSONLD_MAX_CHARS // 2)
+    assert html_budget(20) == 16384 and html_budget(4) == 65536
+    assert "### JSON-LD (shortened)" in text and len(text) > 20 * (16384 + JSONLD_MAX_CHARS // 2)
 
 
 def test_control_characters_and_fences_cannot_break_the_file():

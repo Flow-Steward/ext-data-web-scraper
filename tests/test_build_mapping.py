@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
-import json
-import tempfile
-
 from conftest import make_payload, samples_descriptor
 from fake_service import example
 from workflow_sim import Walk
@@ -64,7 +63,14 @@ def test_marker_slot_and_body_rules():
         }
     ]
     kinds = {step["step_kind"] for step in WORKFLOW["steps"]}
-    assert kinds <= {"set_variable", "agent", "connector", "if", "stop_success"}
+    assert kinds <= {
+        "set_variable",
+        "agent",
+        "connector",
+        "if",
+        "stop_success",
+        "stop_fail",
+    }
     assert "hooks" not in WORKFLOW and "hook" not in str(WORKFLOW["steps"])
     for step in WORKFLOW["steps"]:
         if step["step_kind"] == "connector":
@@ -73,7 +79,10 @@ def test_marker_slot_and_body_rules():
             assert "connector_install_id" not in step
             assert "connection_id" not in str(step)
         if step["step_kind"] == "agent":
-            assert step["agent_id"] == AGENT["agent_id"] and step["skill_id"] == SKILL["skill_id"]
+            assert (
+                step["agent_id"] == AGENT["agent_id"]
+                and step["skill_id"] == SKILL["skill_id"]
+            )
 
 
 def test_graph_is_complete():
@@ -86,9 +95,13 @@ def test_graph_is_complete():
             assert edge["outcome"]["name"] in {"true", "false"}
             assert 1 <= edge["rework_limit"] <= 50
     for step_id, step in steps.items():
-        expected = {"if": {"true", "false"}, "stop_success": set()}.get(
-            step["step_kind"], {"success"}
-        )
+        expected = {
+            "if": {"true", "false"},
+            "stop_success": set(),
+            "stop_fail": set(),
+        }.get(step["step_kind"], {"success"})
+        if (step.get("error_policy") or {}).get("on_error") == "route_to_step":
+            expected = expected | {"error"}
         assert out.get(step_id, set()) == expected, step_id
     reachable, todo = set(), [WORKFLOW["settings"]["execution_graph"]["entry"]["id"]]
     while todo:
@@ -143,6 +156,19 @@ def _walk(service, invoke_inputs, agent, failing_tests: int):
     )
     for _ in range(failing_tests):
         service.override("POST", r"^/v1/mappings/test$", 200, failing)
+    # The shared API example covers two templates, but this invocation may have
+    # sampled only one. Do not inject unrelated optional warnings into a clean pass.
+    passing = example("post_mappings_test.response.json")
+    passing["samples"] = [
+        row
+        for row in passing["samples"]
+        if row["sample_id"] in invoke_inputs["sample_ids"]
+    ]
+    template_ids = {row["template_id"] for row in passing["samples"]}
+    passing["templates"] = [
+        row for row in passing["templates"] if row["template_id"] in template_ids
+    ]
+    service.override("POST", r"^/v1/mappings/test$", 200, passing)
 
     def connector(step, inputs):
         operation = step["override"]["connector"]["operation_id"]

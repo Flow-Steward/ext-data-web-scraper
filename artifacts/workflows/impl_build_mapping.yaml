@@ -1,7 +1,7 @@
 workflow_id: impl_build_mapping
 version: 0.1.15
 display_name: 'Web Scraper: build mapping'
-description: Implementation of the composite action build_mapping (ADR 0065). The mapping agent writes a candidate, test_mapping checks it on the samples, and a failed candidate goes back to the agent with its per-field failures, at most max_refinements times (default 2). Not a workflow to link or run; it runs only as the action.
+description: Implementation of the composite action build_mapping (ADR 0065). The mapping agent writes a candidate, test_mapping checks it on the samples, and failures or optional coverage warnings receive at most max_refinements reviews (default 2). The last tested passing candidate is retained if a later review regresses or the author fails. Not a workflow to link or run; it runs only as the action.
 enabled: true
 trigger:
   confidence_threshold: 0.0
@@ -82,7 +82,7 @@ settings:
       - name: mappings
         type: array
         required: true
-        description: The last candidate, one mapping per template.
+        description: The last tested passing candidate, or the last failed candidate if none passed.
       - name: passed
         type: boolean
         required: true
@@ -98,7 +98,7 @@ settings:
       - name: attempts
         type: number
         required: true
-        description: Generations tried.
+        description: Candidates tested; an author failure before testing does not increment this count.
       - name: summary
         type: string
         required: false
@@ -138,7 +138,7 @@ settings:
         rework: false
       - source: {kind: step, id: candidate_passed}
         outcome: {name: 'true'}
-        target: {kind: step, id: done_passed}
+        target: {kind: step, id: remember_passing}
         rework: false
       - source: {kind: step, id: candidate_passed}
         outcome: {name: 'false'}
@@ -151,11 +151,60 @@ settings:
         rework_limit: 5
       - source: {kind: step, id: refinement_left}
         outcome: {name: 'false'}
+        target: {kind: step, id: passing_available}
+        rework: false
+      - source: {kind: step, id: remember_passing}
+        outcome: {name: success}
+        target: {kind: step, id: quality_budget}
+        rework: false
+      - source: {kind: step, id: quality_budget}
+        outcome: {name: 'true'}
+        target: {kind: step, id: quality_feedback}
+        rework: false
+      - source: {kind: step, id: quality_budget}
+        outcome: {name: 'false'}
+        target: {kind: step, id: done_passed}
+        rework: false
+      - source: {kind: step, id: quality_feedback}
+        outcome: {name: success}
+        target: {kind: step, id: quality_warning}
+        rework: false
+      - source: {kind: step, id: quality_warning}
+        outcome: {name: 'true'}
+        target: {kind: step, id: write_samples}
+        rework: true
+        rework_limit: 5
+      - source: {kind: step, id: quality_warning}
+        outcome: {name: 'false'}
+        target: {kind: step, id: done_passed}
+        rework: false
+      - source: {kind: step, id: passing_available}
+        outcome: {name: 'true'}
+        target: {kind: step, id: restore_passing}
+        rework: false
+      - source: {kind: step, id: passing_available}
+        outcome: {name: 'false'}
         target: {kind: step, id: done_not_passed}
+        rework: false
+      - source: {kind: step, id: restore_passing}
+        outcome: {name: success}
+        target: {kind: step, id: done_fallback}
+        rework: false
+      - source: {kind: step, id: write_mapping}
+        outcome: {name: error}
+        target: {kind: step, id: author_failed}
+        rework: false
+      - source: {kind: step, id: author_failed}
+        outcome: {name: 'true'}
+        target: {kind: step, id: restore_passing}
+        rework: false
+      - source: {kind: step, id: author_failed}
+        outcome: {name: 'false'}
+        target: {kind: step, id: done_author_failed}
         rework: false
   canvas_annotations:
     - id: build_mapping_loop
-      text: "## Build and refine\nThe agent writes a candidate mapping, test_mapping applies it to the samples. A failed candidate goes back to the agent with the per-field failures. test_mapping counts the attempts: after the first generation plus max_refinements (default 2) the action returns passed: false with the last candidate."
+      text: "## Build and refine\nThe agent writes a candidate mapping, test_mapping applies it to the samples. Failures and optional coverage warnings receive bounded review. The last tested passing candidate is retained if a later review regresses or the author fails. After the budget, remaining optional absences stay warnings; required failures remain failures when no candidate passed."
       x: 40
       y: -220
       width: 420
@@ -181,6 +230,8 @@ steps:
       set_variable:
         assignments:
           state.attempt: 0
+          state.has_passing_candidate: false
+          state.warnings: []
           state.mappings:
             source: state.inputs.previous_mappings
           state.failures: []
@@ -228,6 +279,8 @@ steps:
   - step_id: write_mapping
     display_name: Write the mapping (AI)
     step_kind: agent
+    error_policy:
+      on_error: route_to_step
     agent_id: scraper_mapping_author
     skill_id: build_extraction_mapping
     override:
@@ -283,6 +336,7 @@ steps:
       attempts: state.attempts
       can_refine: state.can_refine
       summary: state.summary
+      warnings: state.warnings
   - step_id: candidate_passed
     display_name: Passed?
     step_kind: if
@@ -299,6 +353,90 @@ steps:
         condition:
           selector: state.can_refine
           operator: truthy
+  - step_id: remember_passing
+    display_name: Retain the tested passing candidate
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.has_passing_candidate: true
+          state.last_passing_mappings:
+            source: state.mappings
+          state.last_passing_field_results:
+            source: state.field_results
+          state.last_passing_summary:
+            source: state.summary
+          state.last_passing_warnings:
+            source: state.warnings
+  - step_id: quality_budget
+    display_name: Optional review budget left?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.can_refine
+          operator: truthy
+  - step_id: quality_feedback
+    display_name: Give coverage warnings to the author
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.failures:
+            source: state.warnings
+    description: Optional coverage warnings request evidence-based review; they do not make optional fields required.
+  - step_id: quality_warning
+    display_name: Coverage warnings to review?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.warnings
+          operator: truthy
+  - step_id: passing_available
+    display_name: Earlier tested candidate passed?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.has_passing_candidate
+          operator: truthy
+  - step_id: author_failed
+    display_name: Retained passing candidate after author failure?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.has_passing_candidate
+          operator: truthy
+  - step_id: restore_passing
+    display_name: Restore the last tested passing candidate
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.mappings:
+            source: state.last_passing_mappings
+          state.field_results:
+            source: state.last_passing_field_results
+          state.summary:
+            source: state.last_passing_summary
+          state.warnings:
+            source: state.last_passing_warnings
+          state.passed: true
+          state.failures: []
+  - step_id: done_fallback
+    display_name: Retained mapping passed
+    step_kind: stop_success
+    override:
+      stop_success:
+        message: A later review could not improve the mapping safely. The last tested passing candidate is returned with its remaining optional coverage warnings in the summary.
+  - step_id: done_author_failed
+    display_name: Mapping author failed
+    step_kind: stop_fail
+    override:
+      stop_fail:
+        message: The mapping author did not complete and no candidate passed required checks. Open the failed author step for the provider or structured-output error.
   - step_id: done_passed
     display_name: Mapping passed
     step_kind: stop_success

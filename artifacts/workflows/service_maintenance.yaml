@@ -1,7 +1,7 @@
 # Generated from templates/service_maintenance.bundle.json by .github/scripts/extension_workflows.py; edit the
 # template JSON. The extension's read-only workflow (connection slot, hooks).
 workflow_id: service_maintenance
-version: 0.1.29
+version: 0.1.30-dev.6
 display_name: Service maintenance
 description: 'Cleans up the Web Scraper service''s disk: removes finished runs'' files older than the
   service''s own ages, keeps results Flow Steward has not fetched, and compacts the database. Give it
