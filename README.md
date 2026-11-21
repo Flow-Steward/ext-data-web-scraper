@@ -93,6 +93,11 @@ contract: it serves the contract's examples and validates every request and
 response against `service_contract/schemas`. `tests/workflow_sim.py` walks the
 bundled workflows offline against it.
 
+The optional [album edition acceptance fixture](tests/fixtures/album-editions/README.md)
+also runs the mapping workflow against a local service checkout's real extraction
+engine. It verifies bounded optional-field review, null absences and preservation
+of the latest tested passing mapping without suppliers, proxies or paid AI.
+
 Package with `python .github/scripts/package_extension.py` (writes
 `dist/flowsteward.web-scraper-<version>.zip`). `docs/DEV-LOG.md` records the
 decisions taken while building it.
