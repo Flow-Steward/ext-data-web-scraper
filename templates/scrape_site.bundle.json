@@ -1025,7 +1025,8 @@
             "comparison_warning": "state.run.comparison_warning",
             "timeline": "state.run.timeline",
             "politeness": "state.run.politeness",
-            "message": "state.run_summary"
+            "message": "state.run_summary",
+            "run_page_hint": "state.run_page_hint"
           },
           "description": "How the run ended. A run that did not complete (failed, or still going on after the wait) fails this step with the run's summary as the message."
         },

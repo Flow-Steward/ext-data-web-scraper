@@ -1252,6 +1252,10 @@ operations:
     value_type: text
     display_name: Message
     description: ''
+  - name: run_page_hint
+    value_type: text
+    display_name: Run page hint
+    description: Current run state and queue blocker, with guidance to its status and result pages.
   - name: record_count
     value_type: integer
     display_name: Records
@@ -1303,6 +1307,7 @@ operations:
   - result.platform_job_id
   - result.finished_at
   - result.message
+  - result.run_page_hint
   - result.record_count
   - result.has_records
   - result.no_records_message
