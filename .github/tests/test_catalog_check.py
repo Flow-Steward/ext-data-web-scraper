@@ -130,6 +130,52 @@ def test_an_accepted_archive_passes(monkeypatch, tmp_path, capsys):
     assert "the catalog would accept it" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    "name,payload",
+    [
+        ("acme.thing-1.2.3.zip", b"1.2.3|"),
+        ("acme.thing-1.2.3-dev.6.zip", b"1.2.3-dev.6|"),
+        ("acme.thing-1.2.3-linux-amd64.zip", b"1.2.3|linux-amd64"),
+        ("acme.thing-1.2.3-linux-arm64.zip", b"1.2.3|linux-arm64"),
+        ("acme.thing-1.2.3-dev.6-linux-amd64.zip", b"1.2.3-dev.6|linux-amd64"),
+        ("acme.thing-1.2.3-dev.6-linux-arm64.zip", b"1.2.3-dev.6|linux-arm64"),
+    ],
+)
+def test_archive_identity_reaches_the_pinned_inspector(monkeypatch, tmp_path, name, payload):
+    checker = FAKE_CHECKER + b'''
+def inspect_archive(data, *, entry, version, categories, publishers, target):
+    if data.decode() != version + "|" + target:
+        raise CatalogError("manifest version or package target disagrees with the filename")
+    return {"version": version, "target": target}
+'''
+    module = _checker(monkeypatch, checker=checker)
+    assert module.main([_archive(tmp_path, payload, name)]) == 0
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["acme.thing-1.2.zip", "acme.thing-1.2.3-.zip", "acme.thing-1.2.3-dev!.zip"],
+)
+def test_malformed_prerelease_filenames_fail_closed(monkeypatch, tmp_path, name):
+    module = _checker(monkeypatch)
+    assert module.main([_archive(tmp_path, b"ok", name)]) == 1
+
+
+def test_runtime_suffix_cannot_bypass_manifest_identity(monkeypatch, tmp_path):
+    checker = FAKE_CHECKER + b'''
+def inspect_archive(data, *, entry, version, categories, publishers, target):
+    if version != "1.2.3-dev-linux-arm64" or target:
+        raise CatalogError("manifest version or package target disagrees with the filename")
+'''
+    module = _checker(monkeypatch, checker=checker)
+    assert module.main([_archive(tmp_path, b"ok", "acme.thing-1.2.3-dev-linux-arm64.zip")]) == 1
+
+
+def test_prerelease_inspection_refusal_still_fails(monkeypatch, tmp_path):
+    module = _checker(monkeypatch)
+    assert module.main([_archive(tmp_path, b"refuse", "acme.thing-1.2.3-dev.6.zip")]) == 1
+
+
 @pytest.mark.parametrize("content", [b"refuse", b"crash"])
 def test_a_refused_or_crashed_inspection_fails_the_job(monkeypatch, tmp_path, capsys, content):
     module = _checker(monkeypatch)

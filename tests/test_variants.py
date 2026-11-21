@@ -349,6 +349,12 @@ def _invoke_child(service, tmp_path, agent):
 
 def _walk(service, tmp_path, source, mapping, template_answers, agent_answers):
     service.mappings.clear()
+    # Match this synthetic source, rather than inheriting the unrelated lamp
+    # selector from the shared config example. Coverage warnings now trigger
+    # bounded review and must not consume these source-specific test answers.
+    validated = example("post_config_validate.response.json")
+    validated["config"]["target_page_selector"] = mapping["match"].get("selector")
+    service.override("POST", r"^/v1/config/validate$", 200, validated)
     service.override("POST", r"^/v1/samples$", 200, _samples(source))
     for answer in template_answers:
         service.override("POST", r"^/v1/mappings/test$", 200, answer)

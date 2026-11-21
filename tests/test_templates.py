@@ -817,11 +817,15 @@ def test_events_repair_error_fails_the_request_and_completes_the_event(service, 
 
 
 def test_no_loop_in_the_templates_is_unbounded():
-    """M2: the error routes add no cycle; the only rework edge is in impl_build_mapping."""
-    for workflow in (SCRAPE, EVENTS, MAINT):
-        edges = workflow["execution_graph"]["edges"]
+    """Every cycle crosses an explicitly bounded rework edge."""
+    for workflow in (SCRAPE, EVENTS, MAINT, IMPL):
+        execution_graph = workflow.get("execution_graph") or workflow["settings"]["execution_graph"]
+        edges = execution_graph["edges"]
         graph: dict[str, set] = {}
         for edge in edges:
+            if edge.get("rework"):
+                assert 1 <= edge["rework_limit"] <= 5
+                continue
             graph.setdefault(edge["source"]["id"], set()).add(edge["target"]["id"])
         state: dict[str, int] = {}
 
@@ -833,9 +837,9 @@ def test_no_loop_in_the_templates_is_unbounded():
                     visit(nxt)
             state[node] = 2
 
-        visit(workflow["execution_graph"]["entry"]["id"])
-    rework = [e for e in IMPL["settings"]["execution_graph"]["edges"] if e["rework"]]
-    assert len(rework) == 1 and rework[0]["rework_limit"] == 5
+        for node in {s["step_id"] for s in workflow["steps"]}:
+            if node not in state:
+                visit(node)
 
 
 @pytest.mark.parametrize("name", sorted(BUNDLES))

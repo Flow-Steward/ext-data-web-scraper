@@ -110,6 +110,29 @@ def test_clean_required_pass_does_not_spend_optional_review_budget(service):
     assert state["warnings"] == []
 
 
+@pytest.mark.parametrize(
+    "budget,attempts,passed",
+    [(0, 1, False), (1, 2, True), (2, 3, True), (5, 6, True), (99, 6, True)],
+)
+def test_required_and_optional_rework_share_one_budget(service, budget, attempts, passed):
+    # Alternate the two rework paths: a required failure, then a required pass
+    # with optional gaps. Separate edge limits must never multiply the budget.
+    _responses(service, [_required_failure(), _optional_warning()] * 3)
+    agent = _Agent([_candidate("shared budget")])
+    walk, outcome, state = _walk(
+        service, {**INPUTS, "max_refinements": budget}, agent, failing_tests=0
+    )
+    assert outcome == "stop_success"
+    assert state["attempts"] == attempts
+    assert len(agent.calls) == attempts
+    assert len(service.calls("POST", "/v1/mappings/test")) == attempts
+    assert state["passed"] is passed
+    if attempts >= 3:
+        assert "refinement_left" in walk.trace and "quality_warning" in walk.trace
+    if passed:
+        assert state["mappings"] == _candidate("shared budget")
+
+
 @pytest.mark.parametrize("invalid", [False, True])
 def test_optional_review_regression_returns_last_tested_passing_candidate(
     service, invalid
