@@ -1,7 +1,7 @@
 schema_version: extension_descriptor_v1
 lifecycle: {data_schema_version: 1, data_migrations: []}
 extension_id: flowsteward.web-scraper
-release_version: 0.1.29
+release_version: 0.1.30-dev.6
 extension_type: service_extension
 identity:
   display_name: Web Scraper

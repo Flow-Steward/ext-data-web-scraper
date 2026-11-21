@@ -32,7 +32,7 @@ CATALOG_DIGESTS = {
     "verified_publishers.json": "9b9d8903a45d34f6e81739b609e406d39cdfd250b2f47e506f25952591ff98b8",
 }
 _NAME = re.compile(
-    r"^(?P<id>[a-z0-9.-]+?)-(?P<version>\d+\.\d+\.\d+)(?:-(?P<target>linux-amd64|linux-arm64))?\.zip$"
+    r"^(?P<id>[a-z0-9.-]+?)-(?P<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\.zip$"
 )
 
 
@@ -114,7 +114,18 @@ def main(paths: list[str]) -> int:
         return _error("no archive to check (expected dist/<extension_id>-<version>.zip)")
     failures = 0
     for path in paths:
-        match = _NAME.match(Path(path).name)
+        name = Path(path).name
+        target = ""
+        # Runtime suffixes are reserved by the archive naming convention. Strip
+        # them before matching a prerelease, then let the pinned inspector verify
+        # both version and target against the actual manifest/package contents.
+        for candidate in ("linux-amd64", "linux-arm64"):
+            suffix = f"-{candidate}.zip"
+            if name.endswith(suffix):
+                name = name[: -len(suffix)] + ".zip"
+                target = candidate
+                break
+        match = _NAME.match(name)
         if not match:
             _error(f"{path}: not named <extension_id>-<version>-<target>.zip")
             failures += 1
@@ -127,7 +138,7 @@ def main(paths: list[str]) -> int:
                 version=match["version"],
                 categories=categories,
                 publishers=publishers,
-                target=match["target"] or "",
+                target=target,
             )
         except catalog.CatalogError as exc:  # type: ignore[attr-defined]
             _error(f"{path}: {exc}")

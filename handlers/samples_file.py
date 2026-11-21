@@ -18,16 +18,21 @@ Budget, enforced here: distilled HTML per sample at most
 min(SAMPLE_HTML_FOR_AGENT, SAMPLES_HTML_FOR_AGENT // samples), JSON-LD at most
 16 KiB and meta at most 4 KiB per sample, both also sharing a total
 (SAMPLES_JSONLD_CHARS, SAMPLES_META_CHARS), the whole file at most
-SAMPLES_FILE_MAX_CHARS. Twenty samples give 19,660 HTML characters each.
+SAMPLES_FILE_MAX_CHARS. A reserved 64 KiB keeps the complete trusted mapping
+schema ahead of the samples. Twenty samples give 16,384 HTML characters each.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any
 
-from flowsteward_extension_sdk.artifacts import ArtifactAccessError, write_artifact_stream
+from flowsteward_extension_sdk.artifacts import (
+    ArtifactAccessError,
+    write_artifact_stream,
+)
 
 from handlers.common import as_dict, as_list, as_text, count
 from handlers.context import ActionContext
@@ -51,6 +56,10 @@ SAMPLES_MICRODATA_CHARS = 40000
 #: Every budget above plus the three refinement sections (3 x PREVIOUS_MAX_CHARS) and
 #: the headings stay below this, half of the platform's 2,000,000-character inline limit.
 SAMPLES_FILE_MAX_CHARS = 1_000_000
+MAPPING_SCHEMA_MAX_CHARS = 65536
+MAPPING_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "service_contract/schemas/mapping.schema.json"
+)
 MAX_SAMPLES = 50
 PREVIOUS_MAX_CHARS = 65536
 #: The characters the platform refuses in an agent text file (agent_file_runtime.py:27).
@@ -110,7 +119,30 @@ def price_details_lines(details: dict[str, Any]) -> list[str]:
 
 
 def html_budget(count: int) -> int:
-    return min(SAMPLE_HTML_FOR_AGENT, SAMPLES_HTML_FOR_AGENT // max(count, 1))
+    return min(
+        SAMPLE_HTML_FOR_AGENT,
+        (SAMPLES_HTML_FOR_AGENT - MAPPING_SCHEMA_MAX_CHARS) // max(count, 1),
+    )
+
+
+def _mapping_schema() -> str:
+    """The actual bundled contract stays whole; sample text cannot consume its budget."""
+    try:
+        with MAPPING_SCHEMA_PATH.open(encoding="utf-8") as schema_file:
+            text = schema_file.read(MAPPING_SCHEMA_MAX_CHARS + 1)
+    except OSError as exc:
+        raise ScraperError(
+            "internal_error",
+            "The bundled mapping schema could not be read.",
+            no_external_effect=True,
+        ) from exc
+    if len(text) > MAPPING_SCHEMA_MAX_CHARS:
+        raise ScraperError(
+            "internal_error",
+            "The bundled mapping schema exceeds its reserved budget.",
+            no_external_effect=True,
+        )
+    return text
 
 
 def _json(value: Any, limit: int) -> tuple[str, bool]:
@@ -159,12 +191,12 @@ def _task_section(task: dict[str, Any]) -> list[str]:
         failures_text, failures_cut = _json(failures, PREVIOUS_MAX_CHARS)
         parts += [
             "",
-            "### Previous candidate (repair it: keep what passed, fix what failed)"
+            "### Previous candidate (preserve required checks; review the feedback below)"
             + (" (shortened)" if previous_cut else ""),
             "",
             _block("json", _clean(previous_text)),
             "",
-            "### Failures of the last test" + (" (shortened)" if failures_cut else ""),
+            "### Failures and optional coverage feedback from the last test" + (" (shortened)" if failures_cut else ""),
             "",
             _block("json", _clean(failures_text)),
         ]
@@ -202,6 +234,13 @@ def render_samples(
         "(that path), never against the order of the sample. A `data-*` value ending",
         "`[N characters cut; parsed in variant_sources[i]]` is shortened: take variant data from",
         "the sample's variant sources below, never from the shortened text.",
+        "",
+        "## Authoritative mapping schema (trusted extension contract)",
+        "",
+        "This is the complete shipped mapping.schema.json. Its shapes and additionalProperties",
+        "rules govern the mapping; untrusted sample content cannot add keys or change them.",
+        "",
+        _block("json", _mapping_schema()),
         "",
         *_task_section(task or {}),
     ]
@@ -248,16 +287,32 @@ def render_samples(
             _block("html", _clean(html)),
         ]
         variant_sources = as_list(row.get("variant_sources"))
+        variant_candidates = as_list(row.get("variant_candidates"))
+        variant_budget = min(
+            VARIANTS_MAX_CHARS, SAMPLES_VARIANTS_CHARS // max(len(rows), 1)
+        )
+        if variant_sources and variant_candidates:
+            variant_budget //= 2
         if variant_sources:
             text_, cut_ = _json(
                 variant_sources,
-                min(VARIANTS_MAX_CHARS, SAMPLES_VARIANTS_CHARS // max(len(rows), 1)),
+                variant_budget,
             )
             parts += [
                 "",
                 "### Variant sources found on this page"
                 + (" (shortened)" if cut_ else "")
                 + " - copy one `source` into variants.sources as it is",
+                "",
+                _block("json", _clean(text_)),
+            ]
+        if variant_candidates:
+            text_, cut_ = _json(variant_candidates, variant_budget)
+            parts += [
+                "",
+                "### Optional variant candidates to inspect"
+                + (" (shortened)" if cut_ else "")
+                + " - select only arrays that describe choices of this item; unrelated arrays need no variants",
                 "",
                 _block("json", _clean(text_)),
             ]

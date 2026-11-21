@@ -1252,6 +1252,10 @@ operations:
     value_type: text
     display_name: Message
     description: ''
+  - name: run_page_hint
+    value_type: text
+    display_name: Run page hint
+    description: Current run state and queue blocker, with guidance to its status and result pages.
   - name: record_count
     value_type: integer
     display_name: Records
@@ -1303,6 +1307,7 @@ operations:
   - result.platform_job_id
   - result.finished_at
   - result.message
+  - result.run_page_hint
   - result.record_count
   - result.has_records
   - result.no_records_message
@@ -1937,8 +1942,9 @@ operations:
   - service_download_failed
 - operation_id: build_mapping
   display_name: Build mapping
-  description: 'AI: write a declarative extraction mapping from the samples, test it, and refine it at
-    most twice with the per-field failures. Returns the mapping and passed: false when it never passed.'
+  description: 'AI: write a declarative extraction mapping from the samples, test it, and review failures or
+    optional coverage warnings within the refinement budget. Retains the last tested passing candidate
+    if a later review regresses or the author fails; passed is false when no candidate passed.'
   operation_kind: action
   category: web_scraping
   inputs:
@@ -2026,7 +2032,7 @@ operations:
   - name: mappings
     value_type: array
     display_name: Mappings
-    description: The last candidate, one mapping per template.
+    description: The last tested passing candidate, or the last failed candidate if none passed.
   - name: passed
     value_type: boolean
     display_name: Passed
@@ -2042,7 +2048,7 @@ operations:
   - name: attempts
     value_type: integer
     display_name: Attempts
-    description: Generations tried.
+    description: Candidates tested; an author failure before testing does not increment this count.
   - name: summary
     value_type: text
     display_name: Summary
@@ -2113,7 +2119,7 @@ operations:
     value_type: integer
     required: false
     display_name: Attempt
-    description: Generations tried so far.
+    description: Candidates tested so far.
   - name: target_page_selector
     value_type: text
     required: false

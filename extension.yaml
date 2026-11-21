@@ -2,7 +2,7 @@ manifest_version: 2
 lifecycle: {data_schema_version: 1, data_migrations: []}
 extension_id: flowsteward.web-scraper
 kind: tool_provider
-version: 0.1.29
+version: 0.1.30-dev.6
 display_name: Web Scraper
 # The installed extension's card and detail page show this line (and the descriptor's
 # identity.description); the catalog shows listing.description.

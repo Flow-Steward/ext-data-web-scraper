@@ -3,7 +3,7 @@
   "kind": "workflow_bundle",
   "metadata": {
     "source": "flowsteward.web-scraper",
-    "source_version": "0.1.29",
+    "source_version": "0.1.30-dev.6",
     "template_id": "scrape_a_site",
     "description": "Template 'Scrape a site' of the Web Scraper extension.",
     "contains_secrets": false,
@@ -12,7 +12,7 @@
   "workflows": [
     {
       "workflow_id": "scrape_a_site",
-      "version": "0.1.29",
+      "version": "0.1.30-dev.6",
       "display_name": "Scrape a site",
       "description": "Validates the settings, analyses the site, builds or reuses the extraction mapping (AI), lets you review it, activates it, starts the crawl on the Web Scraper service and waits for it to end (Flow Steward 'Wait for an event'). Then it stores the result as result.jsonl and result.csv and returns them with a preview and the run summary, also to a workflow that calls it with Invoke. A start while a run of the same site is still going on ends 'Skipped' (or waits, with When the site is busy: queue).",
       "enabled": false,
@@ -1025,7 +1025,8 @@
             "comparison_warning": "state.run.comparison_warning",
             "timeline": "state.run.timeline",
             "politeness": "state.run.politeness",
-            "message": "state.run_summary"
+            "message": "state.run_summary",
+            "run_page_hint": "state.run_page_hint"
           },
           "description": "How the run ended. A run that did not complete (failed, or still going on after the wait) fails this step with the run's summary as the message."
         },

@@ -279,7 +279,12 @@ def start_run(ctx: ActionContext) -> dict[str, Any]:
         "created": status == 201,
         "idempotency_key": key,
         "run_page_hint": (f"{_queued(run)} " if _queued(run) else "")
-        + run_page_hint(profile.profile_name, run_id, queued=as_text(run.get("state")) == "queued"),
+        + run_page_hint(
+            profile.profile_name,
+            run_id,
+            state=as_text(run.get("state")),
+            stop_reason=as_text(run.get("stop_reason")),
+        ),
         "skipped": False,
         "skipped_reason": "",
         "busy_run_id": "",
@@ -490,12 +495,22 @@ def recollect_run(ctx: ActionContext) -> dict[str, Any]:
     }
 
 
-def run_page_hint(profile_name: str, run_id: str, *, queued: bool = False) -> str:
+def run_page_hint(
+    profile_name: str, run_id: str, *, state: str = "running", stop_reason: str = ""
+) -> str:
     """Where the operator follows the crawl and finds its result (A28, A40, A55).
 
     A queued run (README 4.13, 4.6) "is queued", not "has started" (A70)."""
+    status = {
+        "queued": "is queued",
+        "running": "has started",
+        "completed": "has completed",
+        "failed": "has failed",
+    }.get(state, f"is {state.replace('_', ' ')}")
+    if stop_reason:
+        status += f", stop reason {stop_reason}"
     return (
-        f"Scraper run {run_id} {'is queued' if queued else 'has started'}. "
+        f"Scraper run {run_id} {status}. "
         "Scrape a site (0.1.23 and later) waits for it "
         "and, when the crawl ends, shows the files result.jsonl (result_file) and result.csv "
         "(result_csv), the first rows (result_preview) and the run summary in its own "
@@ -820,6 +835,12 @@ def get_run_summary(ctx: ActionContext) -> dict[str, Any]:
     run = get_run(ctx, _run_id(ctx))
     summary = summarize_run(run)
     summary["result_by_starter"] = result_by_starter(run)
+    summary["run_page_hint"] = (f"{_queued(run)} " if _queued(run) else "") + run_page_hint(
+        ctx.profile.profile_name,
+        summary["run_id"],
+        state=summary["state"],
+        stop_reason=as_text(run.get("stop_reason")),
+    )
     summary["message"] = " ".join(
         part
         for part in (
