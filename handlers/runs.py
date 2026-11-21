@@ -212,7 +212,7 @@ def analyze_site(ctx: ActionContext) -> dict[str, Any]:
         "analysis": answer,
         "recommended_discovery_mode": as_text(recommended.get("discovery_mode")),
         "discovery_mode": chosen,
-        "sitemap_found": bool(sitemap.get("found")),
+        "sitemap_found": sitemap.get("found"),
         "sitemap_url_count": sitemap.get("url_count"),
         "js_required": bool(as_dict(answer.get("rendering")).get("js_required")),
         "protection": as_text(protection.get("kind"), "none"),

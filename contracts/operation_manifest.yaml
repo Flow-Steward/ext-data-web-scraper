@@ -379,11 +379,11 @@ operations:
   - name: sitemap_found
     value_type: boolean
     display_name: Sitemap found
-    description: True when a sitemap was found.
+    description: True or false after inspection; null when inspection was skipped or inconclusive.
   - name: sitemap_url_count
     value_type: integer
     display_name: Sitemap URLs
-    description: URLs counted in the sitemap.
+    description: Observed sitemap URLs; a lower bound when limited, null when uninspected or unknown. See analysis.sitemap.inspection.
   - name: js_required
     value_type: boolean
     display_name: JavaScript needed
