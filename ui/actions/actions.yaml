@@ -679,6 +679,7 @@ actions:
   - result.platform_job_id
   - result.finished_at
   - result.message
+  - result.run_page_hint
   - result.record_count
   - result.has_records
   - result.no_records_message
