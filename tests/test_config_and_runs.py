@@ -46,7 +46,7 @@ def test_validate_merges_layers_and_coerces_canvas_values(invoke, service):
     assert settings["sitemap_url"] == "" and settings["delay_min_seconds"] == ""
     # Profile defaults travel only to validate.
     assert body["profile"]["defaults"]["max_concurrency"] == 4
-    assert body["profile"]["webhook"]["url"].startswith("https://flow.example.com")
+    assert body["profile"]["webhook"]["url"] == profile_config(service.url)["webhook_url"]
     assert not service.schema_violations
 
 
