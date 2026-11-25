@@ -18,6 +18,7 @@ from handlers.table_samples import (
     extracted_view,
     table_feedback,
     collect_table_obligations,
+    conflicting_variant_table_fields,
     table_preservation_failures,
     fallback_feedback,
 )
@@ -151,6 +152,10 @@ def structural_problems(mappings: list[dict[str, Any]]) -> list[str]:
                         f"{label}.{name}: a spec_table source needs row_selector, key_selector "
                         "and value_selector"
                     )
+        for name in conflicting_variant_table_fields(mapping):
+            problems.append(
+                f"{label}.{name}: a browser table field cannot also be overridden by a variant; use one verified source or separate table and variant fields."
+            )
         problems += _variant_problems(label, mapping.get("variants"))
     return problems
 

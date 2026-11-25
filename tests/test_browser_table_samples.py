@@ -227,6 +227,7 @@ def test_changed_source_after_budget_is_not_fetched_and_fallback_restores_eviden
     assert len(agent.calls) == 2 and len(service.calls("POST", "/v1/samples")) == 1
     assert walk.outputs["sample_ids"] == [fresh["sample_id"]]
     assert walk.outputs["samples"][0]["sample_id"] == fresh["sample_id"]
+    assert walk.outputs["table_obligations"][0]["requires_pagination"] is True
 
 
 def test_parent_and_repair_use_private_sampling_config_and_returned_sample_ids():
@@ -576,7 +577,11 @@ def test_initial_previous_table_obligation_is_not_lost_with_many_new_templates(i
             "sample_ids": [SID],
         },
     )["result"]
-    assert {"template_id": "product", "field": "compatibility"} in result["table_obligations"]
+    assert {
+        "template_id": "product",
+        "field": "compatibility",
+        "requires_pagination": True,
+    } in result["table_obligations"]
     assert not result["passed"]
 
 
@@ -707,3 +712,163 @@ def test_preview_cell_shortening_is_explicit_and_uses_final_string_bounds():
     assert len(capture["headers_preview"][0]) == 256
     assert len(capture["rows_preview"][0][0]) == 256
     assert capture["preview_truncated"] is True
+
+
+def test_ambiguous_variant_proposal_does_not_lock_out_a_valid_separate_field_correction():
+    from handlers.table_samples import collect_table_obligations
+
+    proposed = candidate()
+    proposed[0]["variants"] = {
+        "sources": [
+            {
+                "kind": "embedded_json",
+                "selector": "script#state",
+                "path": "variants",
+                "format": "generic",
+            }
+        ],
+        "fields": [{"name": "compatibility", "path": "raw.compatibility", "type": "html"}],
+    }
+    assert any("one verified source" in text for text in structural_problems(proposed))
+    assert collect_table_obligations(proposed, []) == []
+    corrected = copy.deepcopy(proposed)
+    corrected[0]["fields"][-1]["sources"] = [
+        {"kind": "jsonld", "schema_type": "Product", "path": "compatibility"}
+    ]
+    corrected[0]["fields"].append(
+        {"name": "compatibility_table", "type": "html", "sources": [SOURCE]}
+    )
+    assert not structural_problems(corrected)
+    assert collect_table_obligations(corrected, [])[0]["field"] == "compatibility_table"
+
+
+@pytest.mark.parametrize("flow", ["normal", "repair"])
+def test_known_pagination_cannot_be_dropped_by_the_first_mapping_candidate(service, tmp_path, flow):
+    initial = example("post_samples.response.json")
+    initial["samples"] = initial["samples"][:1]
+    initial["samples"][0].update(sample_id=SID, url=URL)
+    previous = candidate()
+    downgraded = candidate(
+        {
+            key: value
+            for key, value in SOURCE.items()
+            if key not in {"next_selector", "current_page_selector"}
+        }
+    )
+    first, complete = (
+        report(),
+        report(complete=True, sid=fresh_samples()["samples"][0]["sample_id"]),
+    )
+    if flow == "normal":
+        service.mappings[(INPUTS["site"], "product")][-1]["mapping"] = previous[0]
+        service.override("POST", r"^/v1/samples$", 200, initial)
+        workflow, inputs = (
+            SCRAPE,
+            {
+                **SCRAPE_INPUTS,
+                "rebuild_mapping": True,
+                "target_page_selector": "div.product-detail",
+                "fetch_mode": "browser",
+            },
+        )
+    else:
+        previous[0]["template_id"] = downgraded[0]["template_id"] = "spare_part"
+        request = example("get_mapping_request.response.json")
+        request["previous"]["mapping"] = previous[0]
+        request["samples"] = initial["samples"]
+        request["instructions"]["target_page_selector"] = "div.product-detail"
+        service.override("GET", r"^/v1/mapping-requests/.*$", 200, request)
+        service.run_patch = {"config": config() | {"fetch_mode": "browser"}}
+        workflow = EVENTS
+        inputs = {
+            **EVENT_INPUTS,
+            "event_type": "mapping_required",
+            "resource_id": request["mapping_request_id"],
+        }
+        service.event_bodies[inputs["event_id"]] = {
+            "event_type": "mapping_required",
+            "resource_id": inputs["resource_id"],
+        }
+        for response in [first, complete]:
+            response["templates"][0]["template_id"] = response["samples"][0]["template_id"] = (
+                "spare_part"
+            )
+    service.override("POST", r"^/v1/samples$", 200, fresh_samples())
+    for response in [first, complete, complete]:
+        service.override("POST", r"^/v1/mappings/test$", 200, copy.deepcopy(response))
+    walk = Walk(
+        workflow,
+        connector=_connector(service, tmp_path),
+        invoke=_action(service, tmp_path, downgraded),
+        child=IMPL,
+    )
+    outcome, state = walk.run(inputs)
+    assert not service.calls("PUT", "/v1/sites/")
+    assert not [
+        call for call in service.calls("POST", "/v1/samples") if call["body"].get("table_sources")
+    ]
+    assert outcome == ("stop_fail" if flow == "normal" else "stop_success")
+    assert (
+        "pagination"
+        in (state.get("mapping_summary") or state.get("repair", {}).get("summary", "")).lower()
+    )
+
+
+def test_known_pagination_survives_selector_repairs_and_rejects_each_missing_pager_key():
+    from handlers.table_samples import collect_table_obligations, table_preservation_failures
+
+    known = collect_table_obligations(candidate(), [])
+    assert known[0]["requires_pagination"] is True
+    repaired = candidate(
+        SOURCE | {"next_selector": ".repaired-next", "current_page_selector": ".repaired-current"}
+    )
+    assert not table_preservation_failures(repaired, known)
+    for missing in ["next_selector", "current_page_selector"]:
+        changed = candidate({key: value for key, value in SOURCE.items() if key != missing})
+        assert any(
+            "pagination" in row["message"] for row in table_preservation_failures(changed, known)
+        )
+
+
+def test_default_variant_override_is_mirrored_only_for_browser_table_fields():
+    from handlers.table_samples import collect_table_obligations
+
+    mapping = example("mapping.product.json")
+    description = next(field for field in mapping["fields"] if field["name"] == "description")
+    description["sources"] = [SOURCE]
+    mapping["variants"] = {
+        "sources": [
+            {
+                "kind": "embedded_json",
+                "selector": "script#state",
+                "path": "variants",
+                "format": "generic",
+            }
+        ]
+    }
+    assert any("one verified source" in text for text in structural_problems([mapping]))
+    assert collect_table_obligations([mapping], []) == []
+    mapping["variants"]["fields"] = [{"name": "edition", "path": "title", "type": "text"}]
+    assert not structural_problems([mapping])
+    assert collect_table_obligations([mapping], [])[0]["field"] == "description"
+
+
+def test_new_variant_table_guard_keeps_ordinary_malformed_names_as_validation_feedback(invoke):
+    mapping = example("mapping.product.json")
+    mapping["fields"][0]["name"] = ["invalid_name"]
+    mapping["variants"] = {
+        "sources": [
+            {
+                "kind": "embedded_json",
+                "selector": "script#state",
+                "path": "variants",
+                "format": "generic",
+            }
+        ]
+    }
+    response = invoke(
+        "test_mapping", {"site": INPUTS["site"], "mappings": [mapping], "sample_ids": [SID]}
+    )
+    assert response["ok"], response
+    assert not response["result"]["passed"]
+    assert any(row["kind"] == "schema" for row in response["result"]["failures"])

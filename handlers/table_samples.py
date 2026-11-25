@@ -230,44 +230,107 @@ def table_feedback(mappings: list[dict], answer: dict, sample_ids: list[str]) ->
     }
 
 
-def collect_table_obligations(mappings: list[dict], previous: list) -> list[dict[str, str]]:
-    """Keep paginated-table meaning sticky across the entire authoring loop."""
-    obligations = []
-    for row in previous[:2500]:
-        row = as_dict(row)
-        if row.get("template_id") and row.get("field"):
-            item = {
-                "template_id": as_text(row["template_id"])[:64],
-                "field": as_text(row["field"])[:64],
-            }
-            if item not in obligations:
-                obligations.append(item)
+# Mirrors the service variant_field_specs defaults only for the new table rule.
+DEFAULT_VARIANT_FIELD_NAMES = {
+    "price",
+    "currency",
+    "sku",
+    "barcode",
+    "gtin",
+    "availability",
+    "weight",
+    "description",
+    "image",
+    "image_url",
+}
+
+
+def conflicting_variant_table_fields(mapping: dict) -> set[str]:
+    block = as_dict(mapping.get("variants"))
+    if not block:
+        return set()
+    explicit = as_list(block.get("fields"))
+    variant_names = (
+        {as_text(as_dict(field).get("name")) for field in explicit}
+        if explicit
+        else DEFAULT_VARIANT_FIELD_NAMES
+    )
+    return {
+        as_text(field.get("name"))
+        for field in (as_dict(row) for row in as_list(mapping.get("fields")))
+        if as_text(field.get("name")) in variant_names
+        and any(
+            as_dict(source).get("kind") == "browser_table"
+            for source in as_list(field.get("sources"))
+        )
+    }
+
+
+def collect_table_obligations(mappings: list[dict], previous: list) -> list[dict[str, Any]]:
+    """Preserve table meaning and known pagination; never latch ambiguous proposals."""
+    obligations: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def retain(template: str, field: str, paginated: bool) -> None:
+        if not template or not field:
+            return
+        key = (template, field)
+        item = obligations.setdefault(key, {"template_id": template, "field": field})
+        if paginated:
+            item["requires_pagination"] = True
+
+    for raw in previous[:2500]:
+        row = as_dict(raw)
+        retain(
+            as_text(row.get("template_id"))[:64],
+            as_text(row.get("field"))[:64],
+            row.get("requires_pagination") is True,
+        )
     for mapping in mappings[:50]:
+        ambiguous = conflicting_variant_table_fields(mapping)
         for field in (as_dict(row) for row in as_list(mapping.get("fields"))[:50]):
-            if any(
-                as_dict(source).get("kind") == "browser_table"
+            sources = [
+                as_dict(source)
                 for source in as_list(field.get("sources"))
-            ):
-                item = {
-                    "template_id": as_text(mapping.get("template_id")),
-                    "field": as_text(field.get("name")),
-                }
-                if item not in obligations:
-                    obligations.append(item)
-    return obligations
+                if as_dict(source).get("kind") == "browser_table"
+            ]
+            if sources and as_text(field.get("name")) not in ambiguous:
+                paginated = any(
+                    as_text(source.get("next_selector"))
+                    or as_text(source.get("current_page_selector"))
+                    for source in sources
+                )
+                retain(
+                    as_text(mapping.get("template_id")), as_text(field.get("name")), bool(paginated)
+                )
+    return list(obligations.values())
 
 
 def table_preservation_failures(mappings: list[dict], obligations: list[dict]) -> list[dict]:
-    current = collect_table_obligations(mappings, [])
-    return [
-        {
-            "kind": "table_downgrade",
-            "field": item["field"],
-            "message": f"Paginated table {item['template_id']}.{item['field']} cannot be removed or replaced with first-page CSS/scalar data; preserve browser_table semantics and honest unverified coverage.",
-        }
-        for item in obligations
-        if item not in current
-    ]
+    current = {
+        (row["template_id"], row["field"]) for row in collect_table_obligations(mappings, [])
+    }
+    paginated = {
+        (as_text(mapping.get("template_id")), as_text(field.get("name")))
+        for mapping in mappings
+        for field in (as_dict(row) for row in as_list(mapping.get("fields")))
+        if any(
+            as_dict(source).get("kind") == "browser_table"
+            and as_text(as_dict(source).get("next_selector"))
+            and as_text(as_dict(source).get("current_page_selector"))
+            for source in as_list(field.get("sources"))
+        )
+    }
+    failures = []
+    for item in obligations:
+        key = (item["template_id"], item["field"])
+        if key not in current:
+            message = f"Paginated table {key[0]}.{key[1]} cannot be removed or replaced with first-page CSS/scalar data; preserve browser_table semantics and honest unverified coverage."
+        elif item.get("requires_pagination") is True and key not in paginated:
+            message = f"Known pagination for table {key[0]}.{key[1]} requires both next_selector and current_page_selector; repair selectors without removing pagination or claiming first-page data is complete."
+        else:
+            continue
+        failures.append({"kind": "table_downgrade", "field": item["field"], "message": message})
+    return failures
 
 
 def fallback_feedback(warnings: list, summary: str, failures: list[dict]) -> dict:

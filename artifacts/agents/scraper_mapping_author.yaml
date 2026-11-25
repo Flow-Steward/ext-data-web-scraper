@@ -102,6 +102,9 @@ prompts:
       Preserve ordered raw cells, repeated rows, months and blank bounds; never
       substitute an unrelated specification year. Loading and empty selectors are
       mandatory; pagination needs both next_selector and current_page_selector.
+      A known paginated table must retain both selectors through every repair.
+      Repair their values when needed; never remove pagination and claim a
+      single-page capture is the complete table.
       Dedicated Firefox table captures are worker-free; worker-dependent pages
       may remain unsupported. Never replace them with first-page CSS and claim
       complete coverage.
