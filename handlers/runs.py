@@ -390,13 +390,31 @@ def _by_reason_text(by_reason: dict[str, Any]) -> str:
     )
 
 
+def recollect_work_text(parent: dict[str, Any]) -> str:
+    """Describe known recovery URLs and source cursors without treating sources as pages."""
+    parts = []
+    urls = int(parent.get("url_count") or 0)
+    sources = int(parent.get("source_count") or 0)
+    if urls > 0:
+        # The service groups durable queued work and stopped documents together.
+        noun = (
+            "missed or queued page"
+            if as_dict(parent.get("by_reason")).get("stopped")
+            else "missed page"
+        )
+        parts.append(count(urls, noun))
+    if sources > 0:
+        parts.append(count(sources, "unfinished sitemap source"))
+    return " and ".join(parts) or "unfinished work"
+
+
 def recollect_text(run: dict[str, Any]) -> str:
     """Run detail: the parent of a re-collect run, and the re-collect runs of a parent (A45)."""
     parts = []
     parent = as_dict(run.get("recollect_of"))
     if parent:
         parts.append(
-            f"Collects again {count(parent.get('url_count'), 'missed page')} of run "
+            f"Collects again {recollect_work_text(parent)} of run "
             f"{as_text(parent.get('run_id'))}"
             + (
                 f" ({_by_reason_text(as_dict(parent.get('by_reason')))})"
@@ -476,7 +494,7 @@ def recollect_run(ctx: ActionContext) -> dict[str, Any]:
     urls = int(parent.get("url_count") or 0)
     by_reason = _by_reason_text(as_dict(parent.get("by_reason")))
     message = (
-        f"Run {run_id} collects again {count(urls, 'missed page')} of run {parent_id}"
+        f"Run {run_id} collects again {recollect_work_text(parent)} of run {parent_id}"
         + (f" ({by_reason})" if by_reason else "")
         + ". It has its own result: when it ends, a 'Scraper events' job stores it. Follow it on "
         "Run detail."
