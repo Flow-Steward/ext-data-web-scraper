@@ -1685,7 +1685,7 @@
         "pending_sources",
         "refused_sources"
       ],
-      "description": "Sitemap source coverage. A capped or inaccessible source makes outcome partial even with no known missing documents. Source URLs omit credentials, queries and fragments; errors use fixed reason codes. Private-address refusals remain outcome-neutral.",
+      "description": "Sitemap source coverage. A capped or inaccessible source makes outcome partial even with no known missing documents. Source URLs omit credentials, queries and fragments; errors use fixed reason codes. Private-address refusals remain outcome-neutral. When scope is configured_sources, complete means only the declared source scope, never the whole website.",
       "properties": {
         "complete": {
           "type": "boolean"
@@ -1789,6 +1789,25 @@
               }
             }
           }
+        },
+        "scope": {
+          "enum": [
+            "configured_sources"
+          ],
+          "description": "Present when explicit child-source include/exclude filters narrow coverage."
+        },
+        "excluded_source_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of child source occurrences excluded by policy during this traversal; an index replay can observe a source again."
+        },
+        "excluded_sources": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string"
+          },
+          "description": "First twenty excluded child source occurrences, stripped of credentials, query and fragment. Descendants of an excluded index are not inspected."
         }
       }
     }

@@ -395,7 +395,7 @@ workflows:
       side_effects: []
     canvas_annotations:
     - id: note_run_form
-      text: '## Every setting is on the run form
+      text: '## Run settings on the run form
 
         An empty field uses the scraper profile''s default. The Web Scraper extension''s Guide page explains
         every field and when to set it.'

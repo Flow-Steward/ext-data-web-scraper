@@ -64,6 +64,15 @@ actions:
   - name: sitemap_url
     type: string
     required: false
+  - name: max_sitemap_entries
+    type: integer
+    required: false
+  - name: sitemap_source_include
+    type: array
+    required: false
+  - name: sitemap_source_exclude
+    type: array
+    required: false
   - name: max_pages
     type: integer
     required: false

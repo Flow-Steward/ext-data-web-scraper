@@ -103,6 +103,21 @@ operations:
     required: false
     display_name: Sitemap URL
     description: 'The sitemap address when it is not in robots.txt or at /sitemap.xml. Empty: found automatically.'
+  - name: max_sitemap_entries
+    value_type: integer
+    required: false
+    display_name: Maximum sitemap entries
+    description: 'Raw page locations read from sitemap XML, including locations filtered out by URL rules; not products or loaded pages. Whole number from 1 to the service limit (at most 1000000). Empty: the profile''s default, normally 100000.'
+  - name: sitemap_source_include
+    value_type: array
+    required: false
+    display_name: Only these sitemap sources (regex)
+    description: 'JSON list of regexes matching child sitemap URLs. Include intermediate indexes as well as leaf files. Declared root sitemaps are always read; this narrows declared source coverage. Empty: all child sources.'
+  - name: sitemap_source_exclude
+    value_type: array
+    required: false
+    display_name: Never these sitemap sources (regex)
+    description: 'JSON list of regexes for child sitemap URLs to skip; exclusion wins over inclusion. Declared roots are always read; excluding an index skips its descendants. Empty: none excluded.'
   - name: max_pages
     value_type: integer
     required: false

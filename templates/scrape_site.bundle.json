@@ -449,7 +449,7 @@
         "canvas_annotations": [
           {
             "id": "note_run_form",
-            "text": "## Every setting is on the run form\nAn empty field uses the scraper profile's default. The Web Scraper extension's Guide page explains every field and when to set it.",
+            "text": "## Run settings on the run form\nAn empty field uses the scraper profile's default. The Web Scraper extension's Guide page explains every field and when to set it.",
             "x": -640,
             "y": 0,
             "width": 420,

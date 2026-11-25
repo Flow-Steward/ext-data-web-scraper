@@ -422,9 +422,8 @@ Open the workflow and run it. The dialog has two ways:
   workflow run can create external changes…*) — the real run that starts the crawl.
   The **URL file** picker for `url_list` mode is in this Run workflow section.
 
-Every setting is a field of the run form; nothing is edited inside the workflow. An
-empty field uses the profile's default, then the service's. Webhooks and schedules
-pass the same fields.
+Use the run form for normal runs. An empty field uses the profile's default, then
+the service's. Webhooks and schedules pass the same fields.
 
 ### The run form
 
@@ -557,6 +556,25 @@ pass the same fields.
 - **Trap budget (pages)** (`trap_pattern_budget`) — a URL pattern stops being
   followed after this many pages in a row without a product page. 0: off. Empty:
   100.
+
+### Administrator sitemap tuning
+
+Normal runs use the service's sitemap defaults automatically. Administrators can
+configure these settings through the **Validate settings** operation/API, including
+its existing `site_settings` JSON parameter in a custom workflow. They are not public
+inputs of **Scrape a site**; its strict interface refuses undeclared input fields.
+
+- **Maximum sitemap entries** (`max_sitemap_entries`) — Raw page locations read from
+  sitemap XML, including locations filtered out by URL rules; not products or loaded
+  pages. Whole number from 1 to the service limit (at most 1000000). Empty: the profile's
+  default, normally 100000.
+- **Only these sitemap sources (regex)** (`sitemap_source_include`) — JSON list of regexes
+  matching child sitemap URLs. Include intermediate indexes as well as leaf files.
+  Declared root sitemaps are always read; this narrows declared source coverage. Empty:
+  all child sources.
+- **Never these sitemap sources (regex)** (`sitemap_source_exclude`) — JSON list of
+  regexes for child sitemap URLs to skip; exclusion wins over inclusion. Declared roots
+  are always read; excluding an index skips its descendants. Empty: none excluded.
 
 ## Links the scraper skips
 
