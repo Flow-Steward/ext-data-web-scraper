@@ -107,10 +107,7 @@ def test_ai_chosen_fields_reach_the_agent(service, tmp_path):
         outcome, state = walk.run(inputs, raw_inputs=True)
         if outcome == "failed":
             raise StepFailed("; ".join(walk.failures))
-        return {
-            k: state.get(k)
-            for k in ("mappings", "passed", "field_results", "failures", "attempts", "summary")
-        }
+        return walk.outputs
 
     service.mappings.clear()
     walk = Walk(SCRAPE, connector=_connector(service, tmp_path), invoke=child, child=IMPL)

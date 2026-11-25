@@ -339,10 +339,7 @@ def _invoke_child(service, tmp_path, agent):
         outcome, state = walk.run(inputs, raw_inputs=True)
         if outcome == "failed":
             raise StepFailed("the build_mapping child failed: " + "; ".join(walk.failures))
-        return {
-            name: state.get(name)
-            for name in ("mappings", "passed", "field_results", "failures", "attempts", "summary")
-        }
+        return walk.outputs
 
     return run
 

@@ -259,6 +259,9 @@ actions:
   - name: analysis_protection_not_passed
     type: boolean
     required: false
+  - name: table_sources
+    type: array
+    required: false
   result_fields:
   - result.site
   - result.sample_ids
@@ -335,6 +338,21 @@ actions:
   - name: variant_sample_ids
     type: array
     required: false
+  - name: sampling_fetch_mode
+    type: string
+    required: false
+  - name: table_obligations
+    type: array
+    required: false
+  - name: last_passing_warnings
+    type: array
+    required: false
+  - name: last_passing_summary
+    type: string
+    required: false
+  - name: carried_table_warnings
+    type: array
+    required: false
   result_fields:
   - result.passed
   - result.mappings
@@ -351,6 +369,13 @@ actions:
   - result.sample_ids
   - result.summary
   - result.warnings
+  - result.table_resample_needed
+  - result.table_sources
+  - result.table_sample_urls
+  - result.variant_sample_ids
+  - result.table_obligations
+  - result.fallback_warnings
+  - result.fallback_summary
   error_codes:
   - invalid_host_envelope
   - invalid_payload
@@ -892,6 +917,7 @@ actions:
   - result.variant_sample_ids
   - result.ai_choose_fields
   - result.fields_hint
+  - result.sampling_config
   error_codes:
   - invalid_host_envelope
   - invalid_payload
@@ -1063,6 +1089,9 @@ actions:
   - name: fields_hint
     type: string
     required: false
+  - name: config
+    type: object
+    required: false
   result_fields:
   - result.mappings
   - result.passed
@@ -1070,6 +1099,11 @@ actions:
   - result.failures
   - result.attempts
   - result.summary
+  - result.sample_ids
+  - result.samples
+  - result.variant_sample_ids
+  - result.table_obligations
+  - result.warnings
   error_codes: []
 - action_id: test_connection
   title: Test service

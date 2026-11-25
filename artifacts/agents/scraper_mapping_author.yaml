@@ -93,6 +93,26 @@ prompts:
       one (ins, .special-price, .price-new, JSON-LD offers.price); never map the
       struck-through old price (del, .old-price, .was, compare-at) as price - the
       service adds it as regular_price.
+    - For a paginated table that the task needs, use a browser_table source only
+      when its selectors are supported by the sample HTML. It is one source of an
+      html field, multiple false, with no transforms, extract or scalar fallback.
+      Never mask known variant JSON: a browser-table field cannot also be an
+      effective variant field, including default overrides. Use one verified
+      source or separate table and variant fields.
+      Preserve ordered raw cells, repeated rows, months and blank bounds; never
+      substitute an unrelated specification year. Loading and empty selectors are
+      mandatory; pagination needs both next_selector and current_page_selector.
+      A known paginated table must retain both selectors through every repair.
+      Repair their values when needed; never remove pagination and claim a
+      single-page capture is the complete table.
+      Dedicated Firefox table captures are worker-free; worker-dependent pages
+      may remain unsupported. Never replace them with first-page CSS and claim
+      complete coverage.
+      The workflow can acquire the exact proposed source on only the current
+      sample pages once, then tests it offline. Complete capture evidence is
+      mandatory even for an optional table. A changed source after that allowance
+      is spent stays unverified; never remove a requested field or weaken its
+      meaning to make a failed table pass. You have no browsing or acquisition tool.
     - Coverage feedback can contain optional-field warnings even when required
       checks passed. Review the named fields against every variant and every
       sample, including hidden or unselected fragments. Preserve working rules

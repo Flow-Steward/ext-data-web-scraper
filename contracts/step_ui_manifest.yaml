@@ -283,6 +283,10 @@ forms:
     widget_type: boolean
     label: Analysis did not pass the protection
     help_text: Optional. The 'protection_not_passed' output of 'Analyze site'.
+  - name: table_sources
+    widget_type: json
+    label: Proposed browser tables
+    help_text: 'Optional bounded browser_table sources for explicit acquisition; empty omits this request field. Never a run-form setting.'
 - operation_id: test_mapping
   title: Test mapping
   section: Web Scraper · Mapping
@@ -346,6 +350,26 @@ forms:
     widget_type: json
     label: Samples with variants
     help_text: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+  - name: sampling_fetch_mode
+    widget_type: text
+    label: Sampling fetch mode
+    help_text: 'Parent sampling mode used only to prevent acquisition planning in explicit HTTP mode; the test remains offline.'
+  - name: table_obligations
+    widget_type: json
+    label: Paginated table obligations
+    help_text: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: last_passing_warnings
+    widget_type: json
+    label: Retained candidate warnings
+    help_text: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: last_passing_summary
+    widget_type: text
+    label: Retained candidate summary
+    help_text: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: carried_table_warnings
+    widget_type: json
+    label: Retained table warnings
+    help_text: 'Internal unavailable-table warnings from a verified fallback; ordinary stale coverage warnings are not carried.'
 - operation_id: get_mappings
   title: Get mappings
   section: Web Scraper · Mapping
@@ -630,6 +654,10 @@ forms:
     widget_type: text
     label: Fields hint
     help_text: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+  - name: config
+    widget_type: json
+    label: Sampling configuration
+    help_text: 'Optional validated sampling configuration supplied by the parent workflow; used only for one guarded acquisition on current sample URLs.'
 - operation_id: write_samples_file
   title: Write samples file
   section: Web Scraper · Mapping

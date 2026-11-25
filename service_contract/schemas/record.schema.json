@@ -134,6 +134,10 @@
         "$ref": "#/$defs/field_value"
       },
       "description": "Every field of the template's mapping is present: `null` (or `[]` for `multiple`) when not found."
+    },
+    "table_coverage": {
+      "$ref": "mapping.schema.json#/$defs/table_coverage",
+      "description": "Coverage of explicitly mapped browser tables. An incomplete optional table is null while the product record remains present; required table failures block extraction."
     }
   },
   "$defs": {
