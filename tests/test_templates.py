@@ -206,9 +206,6 @@ RUN_FORM = [
     "urls",
     "urls_file",
     "sitemap_url",
-    "max_sitemap_entries",
-    "sitemap_source_include",
-    "sitemap_source_exclude",
     "max_pages",
     "single_page",
     "fetch_mode",
@@ -265,14 +262,14 @@ def test_run_form_of_scrape_a_site():
     assert "schedule" in SCRAPE["settings"]["callable"]["trigger_channels"]
 
 
-def test_every_setting_is_a_run_input_and_site_settings_is_gone():
-    """0.1.9: nothing is edited inside the workflow; every setting is on the run form."""
-    from handlers.settings import RUN_INPUT_KEYS, SITE_SETTING_KEYS
+def test_run_form_settings_and_admin_sitemap_settings_are_separate():
+    """Normal runs use the form; sitemap tuning stays in administrator-authored steps."""
+    from handlers.settings import RUN_INPUT_KEYS, SITE_SETTING_KEYS, SITEMAP_SETTING_KEYS
 
     assert list(SITE_SETTING_KEYS) == SITE_SETTINGS  # still read from old project copies
-    assert set(SITE_SETTINGS) <= set(RUN_FORM)  # browser_os, canvas_noise: run form only
+    assert set(SITE_SETTINGS) - SITEMAP_SETTING_KEYS <= set(RUN_FORM)  # browser_os, canvas_noise: run form only
     assert [name for name in RUN_FORM if name not in {"urls", "urls_file", "run_name"}] == list(
-        RUN_INPUT_KEYS
+        key for key in RUN_INPUT_KEYS if key not in SITEMAP_SETTING_KEYS
     )
     assert all(step["step_id"] != "site_settings" for step in SCRAPE["steps"])
     assert "site_settings" not in json.dumps(SCRAPE["execution_graph"])
@@ -288,7 +285,7 @@ def test_every_setting_is_a_run_input_and_site_settings_is_gone():
         assert selector == expected
     texts = " ".join(n["text"] for n in SCRAPE["settings"]["canvas_annotations"])
     assert "Site settings' step" not in texts.replace("still has a 'Site settings' step", "")
-    assert "Every setting is on the run form" in texts
+    assert "Run settings" in texts
 
 
 def test_events_inputs_and_webhook_channel():

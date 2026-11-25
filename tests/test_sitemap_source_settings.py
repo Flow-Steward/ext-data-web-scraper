@@ -135,22 +135,32 @@ def test_validation_passes_optional_sitemap_settings_to_service(invoke, service)
 
 
 @pytest.mark.parametrize("variant", SCRAPES)
-def test_workflow_sitemap_inputs_reach_run_config(variant, service, tmp_path):
+def test_ordinary_workflow_forms_do_not_expose_sitemap_tuning(variant):
+    workflow = SCRAPES[variant]
+    form = workflow["settings"]["callable"]
+    assert form["strict_inputs"] is True
+    assert not set(FIELDS).intersection(field["name"] for field in form["expected_inputs"])
+    validate = next(step for step in workflow["steps"] if step["step_id"] == "validate_settings")
+    assert not set(FIELDS).intersection(validate["input_mapping_jsonb"])
+
+
+@pytest.mark.parametrize("variant", SCRAPES)
+def test_admin_workflow_site_settings_reach_run_config(variant, service, tmp_path):
     workflow = copy.deepcopy(SCRAPES[variant])
-    form = {field["name"]: field for field in workflow["settings"]["callable"]["expected_inputs"]}
-    for key in FIELDS:
-        assert key in form
-        assert form[key]["required"] is False
-        assert "default" not in form[key]
+    # An administrator can configure the existing Site settings JSON parameter
+    # in their own workflow, without adding technical controls to the run form.
+    validate = next(step for step in workflow["steps"] if step["step_id"] == "validate_settings")
+    validate["input_mapping_jsonb"]["site_settings"] = dict(FIELDS)
     walk = Walk(workflow, connector=_connector(service, tmp_path),
                 invoke=_action(service, tmp_path, []), child=IMPL)
-    outcome, state = walk.run({**SCRAPE_INPUTS, **FIELDS})
+    outcome, state = walk.run(dict(SCRAPE_INPUTS))
     assert outcome == "stop_success", walk.failures
     assert {key: state["config"][key] for key in FIELDS} == EXPECTED
     started = service.calls("POST", "/v1/runs")[0]["body"]["config"]
     assert {key: started[key] for key in FIELDS} == EXPECTED
     body = service.calls("POST", "/v1/config/validate")[0]["body"]
-    assert {key: body["run_inputs"][key] for key in FIELDS} == EXPECTED
+    assert {key: body["site_settings"][key] for key in FIELDS} == EXPECTED
+    assert not set(FIELDS).intersection(body["run_inputs"])
     assert not service.schema_violations
 
 
