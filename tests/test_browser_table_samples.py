@@ -617,3 +617,93 @@ def test_actual_capture_failures_do_not_spend_paid_author_refinement_budget(
     assert outcome == "stop_success" and not state["passed"]
     assert len(agent.calls) == 1 and state["attempts"] == 1
     assert not service.calls("POST", "/v1/samples")
+
+
+def test_final_public_previews_keep_counts_omissions_and_known_extracted_values():
+    sample = {
+        **INPUTS["samples"][0],
+        "extracted": {
+            "title": "Known title",
+            "price": 7.5,
+            "compatibility": "<table>private full table</table>",
+        },
+        "table_fields_omitted": ["compatibility"],
+        "table_captures": [
+            {
+                "source_key": "a" * 64,
+                "complete": True,
+                "reason": "finished",
+                "pages": 2,
+                "bytes": 4000000,
+                "row_count": 9000,
+                "column_count": 3,
+                "preview_truncated": True,
+                "headers_preview": ["Model", "From", "To"],
+                "rows_preview": [["Mock model", "2011-09", ""]],
+            }
+        ],
+    }
+    view = _agent_samples([sample])[0]
+    capture = view["table_captures"][0]
+    assert capture["row_count"] == 9000 and capture["column_count"] == 3
+    assert capture["rows_preview"] == [["Mock model", "2011-09", ""]]
+    assert capture["preview_truncated"] is True
+    assert "rows" not in capture and "headers" not in capture
+    assert view["extracted"] == {"title": "Known title", "price": 7.5}
+    assert view["table_fields_omitted"] == ["compatibility"]
+    text, _ = render_samples(INPUTS["site"], [view])
+    assert "2011-09" in text and "private full table" not in text
+
+
+def test_final_public_capture_schema_and_fetch_projection_agree(invoke, service):
+    response = fresh_samples()
+    response["requested_count"] = 1
+    response["warnings"] = []
+    sample = response["samples"][0]
+    sample["extracted"] = {"title": "Known title", "price": 7.5}
+    sample["table_fields_omitted"] = ["compatibility"]
+    sample["table_evidence"] = {"retained": True, "reason": "retained", "bytes": 100000}
+    sample["table_captures"] = [
+        {
+            "source_key": "a" * 64,
+            "complete": True,
+            "reason": "finished",
+            "pages": 2,
+            "bytes": 100000,
+            "row_count": 300,
+            "column_count": 3,
+            "preview_truncated": True,
+            "headers_preview": ["Model", "From", "To"],
+            "rows_preview": [["Mock model", "2011-09", ""]],
+        }
+    ]
+    service.override("POST", r"^/v1/samples$", 200, response)
+    answer = invoke("fetch_samples", {"config": config(), "urls": [URL], "table_sources": [SOURCE]})
+    assert answer["ok"], answer
+    view = answer["result"]["samples"][0]
+    assert view["extracted"] == {"title": "Known title", "price": 7.5}
+    assert view["table_captures"][0]["row_count"] == 300
+    assert view["table_captures"][0]["rows_preview"] == [["Mock model", "2011-09", ""]]
+    assert view["table_fields_omitted"] == ["compatibility"]
+    assert not service.schema_violations
+
+
+def test_preview_cell_shortening_is_explicit_and_uses_final_string_bounds():
+    sample = {
+        **INPUTS["samples"][0],
+        "table_captures": [
+            {
+                "source_key": "a" * 64,
+                "complete": True,
+                "reason": "finished",
+                "pages": 1,
+                "bytes": 1000,
+                "headers": ["H" * 257],
+                "rows": [["C" * 257]],
+            }
+        ],
+    }
+    capture = _agent_samples([sample])[0]["table_captures"][0]
+    assert len(capture["headers_preview"][0]) == 256
+    assert len(capture["rows_preview"][0][0]) == 256
+    assert capture["preview_truncated"] is True

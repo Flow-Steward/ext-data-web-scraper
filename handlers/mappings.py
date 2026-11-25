@@ -15,6 +15,7 @@ from handlers.runs import _config, get_run, slow_post
 from handlers.table_samples import (
     TABLE_PREVIEW_CHARS,
     evidence_view,
+    extracted_view,
     table_feedback,
     collect_table_obligations,
     table_preservation_failures,
@@ -425,10 +426,7 @@ def _agent_sample(
         "distilled_html": html[:limit],
         "distilled_html_truncated": bool(sample.get("distilled_html_truncated"))
         or len(html) > limit,
-        # Full captured table values stay in the service, not in author/workflow state.
-        "extracted": None
-        if sample.get("table_captures") or sample.get("table_evidence")
-        else as_dict(sample.get("extracted")) or None,
+        **extracted_view(sample, table_budget),
         # A54 (contract row 63): shown / range / on_request / missing.
         "price_on_page": as_text(sample.get("price_on_page")) or None,
         # A54+ (contract row 70): the machine-readable price and a sale's old price.
@@ -1031,7 +1029,8 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
     return {
         **base,
         **fallback_feedback(prior_warnings, prior_summary, table["table_failures"]),
-        "can_refine": can_refine and (not table["table_failures"] or table["table_resample_needed"]),
+        "can_refine": can_refine
+        and (not table["table_failures"] or table["table_resample_needed"]),
         "table_resample_needed": table["table_resample_needed"],
         "table_sources": table["table_sources"],
         "table_sample_urls": table["table_sample_urls"],

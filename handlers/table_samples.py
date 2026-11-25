@@ -27,6 +27,14 @@ def evidence_view(sample: dict[str, Any], budget: int) -> dict[str, Any]:
             "retained": receipt.get("retained") is True,
             "reason": _reason(receipt.get("reason")),
         }
+    for key in ("table_fields_omitted", "extracted_preview_omitted"):
+        names = [
+            as_text(name)
+            for name in as_list(sample.get(key))[:50]
+            if re.fullmatch(r"[a-z][a-z0-9_]{0,79}", as_text(name))
+        ]
+        if names:
+            result[key] = names
     previews = []
     remaining = max(0, budget)
     captures = as_list(sample.get("table_captures"))
@@ -46,7 +54,7 @@ def evidence_view(sample: dict[str, Any], budget: int) -> dict[str, Any]:
             else 0,
         }
         preview["reason"] = _reason(row.get("reason"))
-        cells = as_list(row.get("rows"))
+        cells = as_list(row.get("rows_preview") if "rows_preview" in row else row.get("rows"))
         preview["row_count"] = (
             min(10000, max(len(cells), row.get("row_count", 0)))
             if type(row.get("row_count", 0)) is int
@@ -59,29 +67,53 @@ def evidence_view(sample: dict[str, Any], budget: int) -> dict[str, Any]:
                 64,
                 max(
                     [
-                        len(as_list(row.get("headers"))),
+                        len(
+                            as_list(
+                                row.get("headers_preview")
+                                if "headers_preview" in row
+                                else row.get("headers")
+                            )
+                        ),
                         *[len(as_list(cells_row)) for cells_row in cells[:20]],
                     ]
                 ),
             )
         )
-        preview["headers"] = [as_text(cell)[:200] for cell in as_list(row.get("headers"))[:64]]
+        raw_headers = as_list(
+            row.get("headers_preview") if "headers_preview" in row else row.get("headers")
+        )
+        cells_shortened = len(raw_headers) > 16 or any(
+            len(as_text(cell)) > 256 for cell in raw_headers[:16]
+        )
+        preview["headers_preview"] = [
+            as_text(cell)[:256]
+            for cell in as_list(
+                row.get("headers_preview") if "headers_preview" in row else row.get("headers")
+            )[:16]
+        ]
         preview_rows: list[list[str]] = []
-        preview["rows"] = preview_rows
-        for cells_row in cells[:20]:
-            values = [str(cell)[:500] for cell in as_list(cells_row)[:64]]
+        preview["rows_preview"] = preview_rows
+        for cells_row in cells[:3]:
+            raw_cells = as_list(cells_row)
+            cells_shortened = (
+                cells_shortened
+                or len(raw_cells) > 16
+                or any(len(str(cell)) > 256 for cell in raw_cells[:16])
+            )
+            values = [str(cell)[:256] for cell in raw_cells[:16]]
             cost = len(json.dumps(values, ensure_ascii=False))
             if cost > min(4000, remaining - 700):
                 break
             preview_rows.append(values)
             remaining -= cost
         preview["rows_shortened"] = (
-            row.get("rows_shortened") is True
+            cells_shortened
+            or row.get("rows_shortened") is True
             or row.get("preview_truncated") is True
             or len(preview_rows) < preview["row_count"]
         )
         preview["preview_truncated"] = preview["rows_shortened"]
-        cost = len(json.dumps({k: v for k, v in preview.items() if k != "rows"}))
+        cost = len(json.dumps({k: v for k, v in preview.items() if k != "rows_preview"}))
         if cost > remaining:
             break
         remaining -= cost
@@ -249,4 +281,35 @@ def fallback_feedback(warnings: list, summary: str, failures: list[dict]) -> dic
         "fallback_warnings": warnings,
         "fallback_summary": summary
         + "".join(" Warning: " + row["message"] for row in unavailable[:10]),
+    }
+
+
+def extracted_view(sample: dict[str, Any], budget: int) -> dict[str, Any]:
+    """Preserve known non-table values; never transport full generated tables."""
+    extracted = as_dict(sample.get("extracted"))
+    if not sample.get("table_captures") and not sample.get("table_evidence"):
+        return {"extracted": extracted or None}
+    omitted = {as_text(name) for name in as_list(sample.get("table_fields_omitted"))[:50]}
+    modern = "table_fields_omitted" in sample or any(
+        "rows_preview" in as_dict(row) for row in as_list(sample.get("table_captures"))
+    )
+    if not modern:
+        return {"extracted": None}  # Older captures may duplicate full HTML here.
+    known, shortened = {}, []
+    remaining = max(0, budget)
+    for name, value in extracted.items():
+        if name in omitted:
+            continue
+        if isinstance(value, str) and len(value) > remaining:
+            shortened.append(name)
+            continue
+        cost = len(json.dumps({name: value}, ensure_ascii=False))
+        if cost > remaining:
+            shortened.append(name)
+            continue
+        known[name] = value
+        remaining -= cost
+    return {
+        "extracted": known or None,
+        **({"extracted_preview_omitted": shortened[:50]} if shortened else {}),
     }

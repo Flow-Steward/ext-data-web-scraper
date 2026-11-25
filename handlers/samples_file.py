@@ -289,7 +289,11 @@ def render_samples(
             "",
             _block("html", _clean(html)),
         ]
-        if row.get("table_captures") or row.get("table_evidence"):
+        if (
+            row.get("table_captures")
+            or row.get("table_evidence")
+            or row.get("table_fields_omitted")
+        ):
             table, table_cut = _json(
                 evidence_view(row, 48000 // max(len(rows), 1)), 50000 // max(len(rows), 1)
             )
