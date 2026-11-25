@@ -266,6 +266,23 @@ def _link_rules_off(value: Any) -> Any:
     return list(dict.fromkeys(names))
 
 
+SITEMAP_SETTING_KEYS = {"max_sitemap_entries", "sitemap_source_include", "sitemap_source_exclude"}
+
+
+def omit_unset_sitemap_settings(layer: dict[str, Any]) -> dict[str, Any]:
+    """Keep blank new fields out of requests to services predating sitemap scope.
+
+    Preserve explicit values so an older service can report unsupported settings.
+    Other settings retain their existing unset representation and layer precedence.
+    """
+    return {
+        key: value
+        for key, value in layer.items()
+        if key not in SITEMAP_SETTING_KEYS
+        or not (is_unset(value) or (isinstance(value, str) and not value.strip()))
+    }
+
+
 def run_inputs_layer(inputs: dict[str, Any], url_entries: list[dict[str, str]]) -> dict[str, Any]:
     layer: dict[str, Any] = {}
     for key in RUN_INPUT_KEYS:
@@ -275,7 +292,7 @@ def run_inputs_layer(inputs: dict[str, Any], url_entries: list[dict[str, str]]) 
         layer["link_rules_off"] = _link_rules_off(layer["link_rules_off"])
     if url_entries:
         layer["urls"] = url_entries
-    return layer
+    return omit_unset_sitemap_settings(layer)
 
 
 def site_settings_layer(settings: Any) -> dict[str, Any]:
@@ -303,7 +320,7 @@ def site_settings_layer(settings: Any) -> dict[str, Any]:
     if "proxy_tiers" in raw and "use_proxy_tiers" not in raw:
         # The task document's name for `use_proxy_tiers`.
         layer["use_proxy_tiers"] = coerce_setting("use_proxy_tiers", raw.get("proxy_tiers"))
-    return layer
+    return omit_unset_sitemap_settings(layer)
 
 
 def parse_urls_file(content: bytes) -> list[dict[str, str]]:

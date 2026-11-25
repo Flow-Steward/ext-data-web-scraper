@@ -15,6 +15,7 @@ from urllib.parse import unquote, urlsplit
 from handlers.client import ServiceClient
 from handlers.common import Scrubber, as_dict, as_text, is_unset
 from handlers.errors import ScraperError
+from handlers.settings import omit_unset_sitemap_settings
 
 TIERS = (1, 2, 3)
 PROXY_PROVIDERS = ("generic", "oxylabs", "bright_data", "decodo", "custom_list")
@@ -129,7 +130,7 @@ class Profile:
         body["proxy_tiers"] = [dict(tier) for tier in self.proxy_tiers]
         body["solver"] = dict(self.solver) if self.solver else None
         if with_defaults:
-            body["defaults"] = dict(self.defaults)
+            body["defaults"] = omit_unset_sitemap_settings(self.defaults)
         if with_webhook:
             body["webhook"] = self.webhook()
         return body
