@@ -20,10 +20,10 @@ SERVICE_REPOSITORY = "https://github.com/Flow-Steward/web-scraper-service"
 
 
 def test_version_and_host_minimum():
-    assert MANIFEST["version"] == "0.1.30-dev.6"
-    assert DESCRIPTOR["release_version"] == "0.1.30-dev.6"
+    assert MANIFEST["version"] == "0.1.30-dev.8"
+    assert DESCRIPTOR["release_version"] == "0.1.30-dev.8"
     for variant in SCRAPES.values():
-        assert variant["version"] == "0.1.30-dev.6"
+        assert variant["version"] == "0.1.30-dev.8"
     for name in ("extension.yaml", "extension-descriptor.yaml"):
         manifest = yaml.safe_load((ROOT / name).read_text())
         assert manifest["runtime"]["compatibility"]["platform_min"] == "1.8.0", name
@@ -35,11 +35,11 @@ def test_the_templates_and_workflows_carry_the_version():
             bundle = yaml.safe_load(
                 (ROOT / f"templates/{name}.bundle.{suffix}").read_text()
             )
-            assert bundle["metadata"]["source_version"] == "0.1.30-dev.6", (
+            assert bundle["metadata"]["source_version"] == "0.1.30-dev.8", (
                 name,
                 suffix,
             )
-            assert [w["version"] for w in bundle["workflows"]] == ["0.1.30-dev.6"], (
+            assert [w["version"] for w in bundle["workflows"]] == ["0.1.30-dev.8"], (
                 name,
                 suffix,
             )
@@ -47,7 +47,7 @@ def test_the_templates_and_workflows_carry_the_version():
         workflow = yaml.safe_load(
             (ROOT / f"artifacts/workflows/{name}.yaml").read_text()
         )
-        assert workflow["version"] == "0.1.30-dev.6", name
+        assert workflow["version"] == "0.1.30-dev.8", name
 
 
 def test_setup_builds_the_service_with_compose_and_names_no_image():

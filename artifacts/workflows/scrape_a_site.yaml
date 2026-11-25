@@ -1,7 +1,7 @@
 # Generated from templates/scrape_site.bundle.json by .github/scripts/extension_workflows.py; edit the
 # template JSON. The extension's read-only workflow (connection slot, hooks).
 workflow_id: scrape_a_site
-version: 0.1.30-dev.6
+version: 0.1.30-dev.8
 display_name: Scrape a site
 description: 'Validates the settings, analyses the site, builds or reuses the extraction mapping (AI),
   lets you review it, activates it, starts the crawl on the Web Scraper service and waits for it to end
