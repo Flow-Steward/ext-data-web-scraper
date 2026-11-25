@@ -32,6 +32,9 @@ RUN_INPUT_KEYS = (
     "fields",
     "required_fields",
     "sitemap_url",
+    "max_sitemap_entries",
+    "sitemap_source_include",
+    "sitemap_source_exclude",
     "max_pages",
     "single_page",
     "fetch_mode",
@@ -84,6 +87,9 @@ LINK_RULES = {
 #: such step; `validate_config` still accepts the layer, below the run inputs.
 SITE_SETTING_KEYS = (
     "sitemap_url",
+    "max_sitemap_entries",
+    "sitemap_source_include",
+    "sitemap_source_exclude",
     "url_exclude",
     "target_page_selector",
     "max_pages",
@@ -108,6 +114,7 @@ SITE_SETTING_KEYS = (
 )
 
 INTEGER_KEYS = {
+    "max_sitemap_entries",
     "max_records",
     "max_pages",
     "max_concurrency",
@@ -129,6 +136,8 @@ BOOLEAN_KEYS = {
     "ai_choose_fields",
 }
 STRING_LIST_KEYS = {
+    "sitemap_source_include",
+    "sitemap_source_exclude",
     "fields",
     "required_fields",
     "url_include",

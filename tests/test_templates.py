@@ -38,6 +38,9 @@ OPERATIONS = {
 IMPL = yaml.safe_load((ROOT / "artifacts/workflows/impl_build_mapping.yaml").read_text())
 SITE_SETTINGS = [
     "sitemap_url",
+    "max_sitemap_entries",
+    "sitemap_source_include",
+    "sitemap_source_exclude",
     "url_exclude",
     "target_page_selector",
     "max_pages",
@@ -203,6 +206,9 @@ RUN_FORM = [
     "urls",
     "urls_file",
     "sitemap_url",
+    "max_sitemap_entries",
+    "sitemap_source_include",
+    "sitemap_source_exclude",
     "max_pages",
     "single_page",
     "fetch_mode",

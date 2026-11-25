@@ -530,6 +530,17 @@ pass the same fields.
   (needs `WSS_ALLOW_SOLVERS=1`). Empty: off.
 - **Sitemap URL** (`sitemap_url`) — when the sitemap is not in robots.txt or at
   `/sitemap.xml`.
+- **Maximum sitemap entries** (`max_sitemap_entries`) — Raw page locations read from
+  sitemap XML, including locations filtered out by URL rules; not products or loaded
+  pages. Whole number from 1 to the service limit (at most 1000000). Empty: the profile's
+  default, normally 100000.
+- **Only these sitemap sources (regex)** (`sitemap_source_include`) — JSON list of regexes
+  matching child sitemap URLs. Include intermediate indexes as well as leaf files.
+  Declared root sitemaps are always read; this narrows declared source coverage. Empty:
+  all child sources.
+- **Never these sitemap sources (regex)** (`sitemap_source_exclude`) — JSON list of
+  regexes for child sitemap URLs to skip; exclusion wins over inclusion. Declared roots
+  are always read; excluding an index skips its descendants. Empty: none excluded.
 - **Maximum pages** (`max_pages`) — pages loaded at most, listing pages included.
   Empty: 10000.
 - **Only the start page** (`single_page`) — on: scrape only the Site URL.

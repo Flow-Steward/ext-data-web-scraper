@@ -141,6 +141,26 @@ settings:
       required: false
       description: 'The sitemap address when it is not in robots.txt or at /sitemap.xml. Empty: found
         automatically.'
+    - name: max_sitemap_entries
+      label: Maximum sitemap entries
+      type: number
+      required: false
+      description: 'Raw page locations read from sitemap XML, including locations filtered out by URL
+        rules; not products or loaded pages. Whole number from 1 to the service limit (at most 1000000).
+        Empty: the profile''s default, normally 100000.'
+    - name: sitemap_source_include
+      label: Only these sitemap sources (regex)
+      type: array
+      required: false
+      description: 'JSON list of regexes matching child sitemap URLs. Include intermediate indexes as
+        well as leaf files. Declared root sitemaps are always read; this narrows declared source coverage.
+        Empty: all child sources.'
+    - name: sitemap_source_exclude
+      label: Never these sitemap sources (regex)
+      type: array
+      required: false
+      description: 'JSON list of regexes for child sitemap URLs to skip; exclusion wins over inclusion.
+        Declared roots are always read; excluding an index skips its descendants. Empty: none excluded.'
     - name: max_pages
       label: Maximum pages
       type: number
@@ -864,6 +884,9 @@ steps:
     urls: state.inputs.urls|default:null
     urls_file: state.inputs.urls_file|default:null
     sitemap_url: state.inputs.sitemap_url|default:null
+    max_sitemap_entries: state.inputs.max_sitemap_entries|default:null
+    sitemap_source_include: state.inputs.sitemap_source_include|default:null
+    sitemap_source_exclude: state.inputs.sitemap_source_exclude|default:null
     max_pages: state.inputs.max_pages|default:null
     single_page: state.inputs.single_page|default:null
     fetch_mode: state.inputs.fetch_mode|default:null
