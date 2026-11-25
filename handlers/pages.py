@@ -24,6 +24,7 @@ from handlers.runs import (
     explanation_text,
     no_records_text,
     politeness_text,
+    recollect_work_text,
     record_count_of,
     result_by_starter,
     soft_errors_text,
@@ -441,7 +442,7 @@ def run_report(payload: dict[str, Any]) -> dict[str, Any]:
     if parent:
         parent_id = as_text(parent.get("run_id"))
         status.append(
-            f"It collects again {count(parent.get('url_count'), 'missed page')} of "
+            f"It collects again {recollect_work_text(parent)} of "
             f"[an earlier run]({page.run_link(parent_id)})."
         )
     children = [as_dict(c) for c in as_list(run.get("recollected_by"))]
