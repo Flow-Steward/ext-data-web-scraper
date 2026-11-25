@@ -584,10 +584,7 @@ def test_build_mapping_never_returns_a_mapping_with_gaps(service, tmp_path):
     def action(_step, inputs):
         walk = Walk(IMPL, connector=_recording(service, tmp_path, []), agent=agent)
         _outcome, state = walk.run(inputs, raw_inputs=True)
-        return {
-            k: state.get(k)
-            for k in ("mappings", "passed", "field_results", "failures", "attempts", "summary")
-        }
+        return walk.outputs
 
     walk = Walk(
         SCRAPES["published"],

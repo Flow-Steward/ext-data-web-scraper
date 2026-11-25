@@ -640,6 +640,7 @@ workflows:
       mappings: state.mappings
       field_results: state.field_results
       summary: state.mapping_summary
+      table_obligations: state.table_obligations
     description: Tests the stored mapping on the new samples; a passing one is reused without AI.
   - step_id: stored_passed
     display_name: Stored mapping passes?
@@ -680,6 +681,7 @@ workflows:
           variant_sample_ids: state.variant_sample_ids
           ai_choose_fields: state.ai_choose_fields
           fields_hint: state.fields_hint
+          config: state.config
         output_mapping:
           mappings: state.mappings
           passed: state.built_passed
@@ -687,6 +689,11 @@ workflows:
           failures: state.mapping_failures
           attempts: state.mapping_attempts
           summary: state.mapping_summary
+          sample_ids: state.sample_ids
+          samples: state.samples
+          variant_sample_ids: state.variant_sample_ids
+          table_obligations: state.table_obligations
+          warnings: state.mapping_warnings
     error_policy:
       on_error: route_to_step
   - step_id: built_passed
@@ -728,6 +735,8 @@ workflows:
       extraction_mode: state.extraction_mode
       target_page_selector: state.target_page_selector|default:null
       variant_sample_ids: state.variant_sample_ids|default:[]
+      table_obligations: state.table_obligations|default:[]
+      carried_table_warnings: state.mapping_warnings|default:[]
     output_mapping_jsonb:
       passed: state.final_passed
       field_results: state.field_results

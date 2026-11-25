@@ -498,6 +498,11 @@ operations:
     required: false
     display_name: Analysis did not pass the protection
     description: The 'protection_not_passed' output of 'Analyze site'.
+  - name: table_sources
+    value_type: array
+    required: false
+    display_name: Proposed browser tables
+    description: 'Optional bounded browser_table sources for explicit acquisition; empty omits this request field. Never a run-form setting.'
   outputs:
   - name: site
     value_type: text
@@ -640,6 +645,31 @@ operations:
     required: false
     display_name: Samples with variants
     description: Sample ids whose pages carry variant data (the 'variant_sample_ids' output of 'Fetch samples' or of the mapping request). A template matching one of them must have a variants block.
+  - name: sampling_fetch_mode
+    value_type: text
+    required: false
+    display_name: Sampling fetch mode
+    description: 'Parent sampling mode used only to prevent acquisition planning in explicit HTTP mode; the test remains offline.'
+  - name: table_obligations
+    value_type: array
+    required: false
+    display_name: Paginated table obligations
+    description: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: last_passing_warnings
+    value_type: array
+    required: false
+    display_name: Retained candidate warnings
+    description: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: last_passing_summary
+    value_type: text
+    required: false
+    display_name: Retained candidate summary
+    description: 'Internal bounded authoring state; preserve table meaning and unavailable evidence across refinement and fallback.'
+  - name: carried_table_warnings
+    value_type: array
+    required: false
+    display_name: Retained table warnings
+    description: 'Internal unavailable-table warnings from a verified fallback; ordinary stale coverage warnings are not carried.'
   outputs:
   - name: passed
     value_type: boolean
@@ -702,6 +732,34 @@ operations:
     display_name: Warnings
     description: Templates whose match.selector does not include the product page selector. They do
       not fail the test; the service skips pages without the selector anyway.
+  - name: table_resample_needed
+    value_type: boolean
+    display_name: Table Resample Needed
+    description: 'True only for eligible missing replay evidence; no network is performed.'
+  - name: table_sources
+    value_type: array
+    display_name: Table Sources
+    description: 'Exact service-validated source objects for a bounded explicit acquisition.'
+  - name: table_sample_urls
+    value_type: array
+    display_name: Table Sample Urls
+    description: 'Current served sample URLs only; never supplied by the author.'
+  - name: variant_sample_ids
+    value_type: array
+    display_name: Variant Sample Ids
+    description: 'Current variant-bearing sample IDs, preserved across offline retests.'
+  - name: table_obligations
+    value_type: array
+    display_name: Table Obligations
+    description: 'Internal authoring state; never acquires samples.'
+  - name: fallback_warnings
+    value_type: array
+    display_name: Fallback Warnings
+    description: 'Internal authoring state; never acquires samples.'
+  - name: fallback_summary
+    value_type: text
+    display_name: Fallback Summary
+    description: 'Internal authoring state; never acquires samples.'
   result_fields:
   - result.passed
   - result.mappings
@@ -718,6 +776,13 @@ operations:
   - result.sample_ids
   - result.summary
   - result.warnings
+  - result.table_resample_needed
+  - result.table_sources
+  - result.table_sample_urls
+  - result.variant_sample_ids
+  - result.table_obligations
+  - result.fallback_warnings
+  - result.fallback_summary
   error_codes:
   - invalid_host_envelope
   - invalid_payload
@@ -1744,6 +1809,10 @@ operations:
     value_type: text
     display_name: Fields hint
     description: The run's hint for the AI-chosen fields; empty when none.
+  - name: sampling_config
+    value_type: object
+    display_name: Sampling configuration
+    description: 'Configuration read from the mapping request bound run through the selected approved profile; never authored by the agent.'
   result_fields:
   - result.mapping_request_id
   - result.run_id
@@ -1772,6 +1841,7 @@ operations:
   - result.variant_sample_ids
   - result.ai_choose_fields
   - result.fields_hint
+  - result.sampling_config
   error_codes:
   - invalid_host_envelope
   - invalid_payload
@@ -2043,6 +2113,11 @@ operations:
     required: false
     display_name: Fields hint
     description: "The operator's hint for those fields, e.g. 'wine: vintage, type, bottle size, taste'."
+  - name: config
+    value_type: object
+    required: false
+    display_name: Sampling configuration
+    description: 'Optional validated sampling configuration supplied by the parent workflow; used only for one guarded acquisition on current sample URLs.'
   outputs:
   - name: mappings
     value_type: array
@@ -2068,6 +2143,26 @@ operations:
     value_type: text
     display_name: Summary
     description: One line per field.
+  - name: sample_ids
+    value_type: array
+    display_name: Sample Ids
+    description: 'IDs of the samples that verified the returned candidate.'
+  - name: samples
+    value_type: array
+    display_name: Samples
+    description: 'Bounded sample evidence coupled to the returned candidate.'
+  - name: variant_sample_ids
+    value_type: array
+    display_name: Variant Sample Ids
+    description: 'Variant-bearing IDs of that same evidence set.'
+  - name: table_obligations
+    value_type: array
+    display_name: Paginated table obligations
+    description: 'Meaning of the returned tested candidate, preserved by the final offline parent check.'
+  - name: warnings
+    value_type: array
+    display_name: Warnings
+    description: 'Warnings accompanying the returned tested candidate, including unavailable later table proposals.'
   result_fields:
   - result.mappings
   - result.passed
@@ -2075,6 +2170,11 @@ operations:
   - result.failures
   - result.attempts
   - result.summary
+  - result.sample_ids
+  - result.samples
+  - result.variant_sample_ids
+  - result.table_obligations
+  - result.warnings
 - operation_id: write_samples_file
   display_name: Write samples file
   description: Store the sample pages (URL, title, template hint, JSON-LD, meta, distilled HTML) as one

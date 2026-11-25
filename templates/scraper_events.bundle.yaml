@@ -415,6 +415,7 @@ workflows:
       variant_sample_ids: state.request.variant_sample_ids
       ai_choose_fields: state.request.ai_choose_fields
       fields_hint: state.request.fields_hint
+      sampling_config: state.request.sampling_config
     description: Reads the mapping request of a template that stopped extracting during the crawl.
   - step_id: request_open
     display_name: Still open?
@@ -457,11 +458,17 @@ workflows:
           variant_sample_ids: state.request.variant_sample_ids
           ai_choose_fields: state.request.ai_choose_fields
           fields_hint: state.request.fields_hint
+          config: state.request.sampling_config
         output_mapping:
           mappings: state.repair.mappings
           passed: state.repair.passed
           summary: state.repair.summary
           attempts: state.repair.attempts
+          sample_ids: state.repair.sample_ids
+          samples: state.repair.samples
+          variant_sample_ids: state.repair.variant_sample_ids
+          table_obligations: state.repair.table_obligations
+          warnings: state.repair.warnings
     error_policy:
       on_error: route_to_step
   - step_id: repair_passed
@@ -646,6 +653,42 @@ workflows:
           is. A run without records has no file.
     description: The event is handled; for a finished run the records are result.jsonl from 'Get result'
       in this job.
+  - step_id: retest_repair
+    display_name: Test repair before activation
+    step_kind: connector
+    connector_id: extension.flowsteward.web-scraper
+    connection_binding_jsonb:
+      connection_id: scraper_profile
+    error_policy:
+      on_error: route_to_step
+    override:
+      connector:
+        extension_id: flowsteward.web-scraper
+        operation_id: test_mapping
+    input_mapping_jsonb:
+      site: state.request.site
+      mappings: state.repair.mappings
+      sample_ids: state.repair.sample_ids
+      required_fields: state.request.required_fields
+      required_fill_threshold: state.request.required_fill_threshold|default:0.9
+      extraction_mode: state.request.extraction_mode|default:"auto"
+      variant_sample_ids: state.repair.variant_sample_ids|default:[]
+      table_obligations: state.repair.table_obligations|default:[]
+      carried_table_warnings: state.repair.warnings|default:[]
+    output_mapping_jsonb:
+      passed: state.repair.passed
+      summary: state.repair.summary
+    description: Offline final check against the exact evidence returned with the repaired candidate;
+      no hidden page acquisition.
+  - step_id: repair_still_passed
+    display_name: Repair still passes?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.repair.passed
+          operator: truthy
+    description: Activates only a repair that still passes its final offline evidence check.
   groups: []
   for_each: []
   execution_graph:
@@ -854,7 +897,7 @@ workflows:
         name: 'true'
       target:
         kind: step
-        id: activate_repair
+        id: retest_repair
       rework: false
     - source:
         kind: step
@@ -1053,6 +1096,42 @@ workflows:
       target:
         kind: step
         id: already_processed
+      rework: false
+    - source:
+        kind: step
+        id: retest_repair
+      outcome:
+        name: success
+      target:
+        kind: step
+        id: repair_still_passed
+      rework: false
+    - source:
+        kind: step
+        id: retest_repair
+      outcome:
+        name: error
+      target:
+        kind: step
+        id: report_failure
+      rework: false
+    - source:
+        kind: step
+        id: repair_still_passed
+      outcome:
+        name: 'true'
+      target:
+        kind: step
+        id: activate_repair
+      rework: false
+    - source:
+        kind: step
+        id: repair_still_passed
+      outcome:
+        name: 'false'
+      target:
+        kind: step
+        id: report_failure
       rework: false
 dependencies:
   agents: []

@@ -77,6 +77,10 @@ settings:
         type: string
         required: false
         description: The operator's hint for those fields.
+      - name: config
+        type: object
+        required: false
+        description: Parent-validated sampling configuration; only one guarded acquisition of current sample URLs is allowed.
     output_mode: variables
     expected_outputs:
       - name: mappings
@@ -103,6 +107,26 @@ settings:
         type: string
         required: false
         description: One line per field.
+      - name: sample_ids
+        type: array
+        required: false
+        description: Evidence coupled to the returned tested candidate.
+      - name: samples
+        type: array
+        required: false
+        description: Evidence coupled to the returned tested candidate.
+      - name: variant_sample_ids
+        type: array
+        required: false
+        description: Evidence coupled to the returned tested candidate.
+      - name: table_obligations
+        type: array
+        required: false
+        description: Paginated-table meaning coupled to the returned verified candidate.
+      - name: warnings
+        type: array
+        required: false
+        description: Honest warnings accompanying the returned verified candidate.
     expected_artifacts: []
     side_effects: []
   action_implementation:
@@ -130,11 +154,11 @@ settings:
         rework: false
       - source: {kind: step, id: write_mapping}
         outcome: {name: success}
-        target: {kind: step, id: test_candidate}
+        target: {kind: step, id: candidate_attempt}
         rework: false
       - source: {kind: step, id: test_candidate}
         outcome: {name: success}
-        target: {kind: step, id: candidate_passed}
+        target: {kind: step, id: table_needed}
         rework: false
       - source: {kind: step, id: candidate_passed}
         outcome: {name: 'true'}
@@ -202,6 +226,55 @@ settings:
         outcome: {name: 'false'}
         target: {kind: step, id: done_author_failed}
         rework: false
+      - source: {kind: step, id: candidate_attempt}
+        outcome: {name: 'success'}
+        target: {kind: step, id: test_candidate}
+        rework: false
+      - source: {kind: step, id: table_needed}
+        outcome: {name: 'true'}
+        target: {kind: step, id: table_budget}
+        rework: false
+      - source: {kind: step, id: table_needed}
+        outcome: {name: 'false'}
+        target: {kind: step, id: candidate_passed}
+        rework: false
+      - source: {kind: step, id: table_budget}
+        outcome: {name: 'true'}
+        target: {kind: step, id: passing_available}
+        rework: false
+      - source: {kind: step, id: table_budget}
+        outcome: {name: 'false'}
+        target: {kind: step, id: table_config}
+        rework: false
+      - source: {kind: step, id: table_config}
+        outcome: {name: 'true'}
+        target: {kind: step, id: consume_table_budget}
+        rework: false
+      - source: {kind: step, id: table_config}
+        outcome: {name: 'false'}
+        target: {kind: step, id: passing_available}
+        rework: false
+      - source: {kind: step, id: consume_table_budget}
+        outcome: {name: 'success'}
+        target: {kind: step, id: acquire_table_samples}
+        rework: false
+      - source: {kind: step, id: acquire_table_samples}
+        outcome: {name: 'success'}
+        target: {kind: step, id: table_samples_ready}
+        rework: false
+      - source: {kind: step, id: acquire_table_samples}
+        outcome: {name: 'error'}
+        target: {kind: step, id: passing_available}
+        rework: false
+      - source: {kind: step, id: table_samples_ready}
+        outcome: {name: 'false'}
+        target: {kind: step, id: passing_available}
+        rework: false
+      - source: {kind: step, id: table_samples_ready}
+        outcome: {name: 'true'}
+        target: {kind: step, id: test_candidate}
+        rework: true
+        rework_limit: 1
   canvas_annotations:
     - id: build_mapping_loop
       text: "## Build and refine\nThe agent writes a candidate mapping, test_mapping applies it to the samples. Failures and optional coverage warnings receive bounded review. The last tested passing candidate is retained if a later review regresses or the author fails. After the budget, remaining optional absences stay warnings; required failures remain failures when no candidate passed."
@@ -230,6 +303,14 @@ steps:
       set_variable:
         assignments:
           state.attempt: 0
+          state.table_resample_used: false
+          state.table_obligations: []
+          state.sample_ids:
+            source: state.inputs.sample_ids
+          state.samples:
+            source: state.inputs.samples
+          state.variant_sample_ids:
+            source: state.inputs.variant_sample_ids
           state.has_passing_candidate: false
           state.warnings: []
           state.mappings:
@@ -249,7 +330,7 @@ steps:
         operation_id: write_samples_file
     input_mapping_jsonb:
       site: state.inputs.site
-      samples: state.inputs.samples
+      samples: state.samples
       extraction_instructions: state.inputs.extraction_instructions|default:""
       fields: state.inputs.fields|default:[]
       required_fields: state.inputs.required_fields|default:[]
@@ -317,17 +398,24 @@ steps:
         operation_id: test_mapping
     input_mapping_jsonb:
       site: state.inputs.site
+      table_obligations: state.table_obligations
+      last_passing_warnings: state.last_passing_warnings|default:[]
+      last_passing_summary: state.last_passing_summary|default:""
+      sampling_fetch_mode: state.inputs.config.fetch_mode|default:""
       mappings: state.mappings
       mappings_json: state.mappings_json
-      sample_ids: state.inputs.sample_ids
+      sample_ids: state.sample_ids
       required_fill_threshold: state.inputs.required_fill_threshold|default:0.9
       required_fields: state.inputs.required_fields|default:[]
       extraction_mode: state.inputs.extraction_mode|default:"auto"
-      attempt: state.attempt
+      attempt: state.candidate_attempt
       max_refinements: state.inputs.max_refinements|default:2
       target_page_selector: state.inputs.target_page_selector|default:""
-      variant_sample_ids: state.inputs.variant_sample_ids|default:[]
+      variant_sample_ids: state.variant_sample_ids|default:[]
     output_mapping_jsonb:
+      table_obligations: state.table_obligations
+      fallback_warnings: state.fallback_warnings
+      fallback_summary: state.fallback_summary
       passed: state.passed
       mappings: state.mappings
       field_results: state.field_results
@@ -337,6 +425,10 @@ steps:
       can_refine: state.can_refine
       summary: state.summary
       warnings: state.warnings
+      table_resample_needed: state.table_resample_needed
+      table_sources: state.table_sources
+      table_sample_urls: state.table_sample_urls
+      variant_sample_ids: state.variant_sample_ids
   - step_id: candidate_passed
     display_name: Passed?
     step_kind: if
@@ -367,6 +459,18 @@ steps:
           state.last_passing_summary:
             source: state.summary
           state.last_passing_warnings:
+            source: state.warnings
+          state.last_passing_sample_ids:
+            source: state.sample_ids
+          state.last_passing_samples:
+            source: state.samples
+          state.last_passing_variant_sample_ids:
+            source: state.variant_sample_ids
+          state.last_passing_table_obligations:
+            source: state.table_obligations
+          state.fallback_summary:
+            source: state.summary
+          state.fallback_warnings:
             source: state.warnings
   - step_id: quality_budget
     display_name: Optional review budget left?
@@ -420,11 +524,19 @@ steps:
           state.field_results:
             source: state.last_passing_field_results
           state.summary:
-            source: state.last_passing_summary
+            source: state.fallback_summary
           state.warnings:
-            source: state.last_passing_warnings
+            source: state.fallback_warnings
           state.passed: true
           state.failures: []
+          state.sample_ids:
+            source: state.last_passing_sample_ids
+          state.samples:
+            source: state.last_passing_samples
+          state.variant_sample_ids:
+            source: state.last_passing_variant_sample_ids
+          state.table_obligations:
+            source: state.last_passing_table_obligations
   - step_id: done_fallback
     display_name: Retained mapping passed
     step_kind: stop_success
@@ -449,5 +561,74 @@ steps:
     override:
       stop_success:
         message: No candidate passed within the refinements; the last candidate and its failures are returned with passed false.
+  - step_id: candidate_attempt
+    display_name: Keep the current candidate attempt
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.candidate_attempt:
+            source: state.attempt
+  - step_id: table_needed
+    display_name: Table Needed?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.table_resample_needed
+          operator: truthy
+  - step_id: table_budget
+    display_name: Table Budget?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.table_resample_used
+          operator: truthy
+  - step_id: table_config
+    display_name: Table Config?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.inputs.config
+          operator: truthy
+  - step_id: table_samples_ready
+    display_name: Table Samples Ready?
+    step_kind: if
+    override:
+      if:
+        condition:
+          selector: state.sample_ids
+          operator: truthy
+  - step_id: consume_table_budget
+    display_name: Use the one acquisition allowance
+    step_kind: set_variable
+    override:
+      set_variable:
+        assignments:
+          state.table_resample_used: true
+  - step_id: acquire_table_samples
+    display_name: Acquire guarded table samples
+    step_kind: connector
+    connector_id: extension.flowsteward.web-scraper
+    connection_binding_jsonb:
+      slot: profile
+    error_policy:
+      on_error: route_to_step
+    override:
+      connector:
+        extension_id: flowsteward.web-scraper
+        operation_id: fetch_samples
+    input_mapping_jsonb:
+      config: state.inputs.config|default:{}
+      urls: state.table_sample_urls
+      table_sources: state.table_sources
+    output_mapping_jsonb:
+      sample_ids: state.sample_ids
+      samples: state.samples
+      variant_sample_ids: state.variant_sample_ids
+    description: One explicit guarded acquisition of only current served sample URLs, followed by an offline
+      retest of the unchanged candidate.
 groups: []
 for_each: []

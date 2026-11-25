@@ -267,7 +267,9 @@ def test_run_form_settings_and_admin_sitemap_settings_are_separate():
     from handlers.settings import RUN_INPUT_KEYS, SITE_SETTING_KEYS, SITEMAP_SETTING_KEYS
 
     assert list(SITE_SETTING_KEYS) == SITE_SETTINGS  # still read from old project copies
-    assert set(SITE_SETTINGS) - SITEMAP_SETTING_KEYS <= set(RUN_FORM)  # browser_os, canvas_noise: run form only
+    assert set(SITE_SETTINGS) - SITEMAP_SETTING_KEYS <= set(
+        RUN_FORM
+    )  # browser_os, canvas_noise: run form only
     assert [name for name in RUN_FORM if name not in {"urls", "urls_file", "run_name"}] == list(
         key for key in RUN_INPUT_KEYS if key not in SITEMAP_SETTING_KEYS
     )
@@ -374,10 +376,7 @@ def _action(service, tmp_path, agent_mappings):
         outcome, state = walk.run(inputs, raw_inputs=True)
         if outcome == "failed":
             raise StepFailed("the build_mapping child failed: " + "; ".join(walk.failures))
-        return {
-            name: state.get(name)
-            for name in ("mappings", "passed", "field_results", "failures", "attempts", "summary")
-        }
+        return walk.outputs
 
     return run
 
@@ -674,6 +673,9 @@ def test_default_filters_give_the_values_the_handlers_expect():
         if split_default(selector)[2]
     }
     assert defaults == {
+        "sampling_fetch_mode": "",
+        "last_passing_warnings": [],
+        "last_passing_summary": "",
         "required_fill_threshold": 0.9,
         "required_fields": [],
         "extraction_mode": "auto",

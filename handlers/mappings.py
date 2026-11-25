@@ -11,7 +11,15 @@ from handlers import protection as protection_text
 from handlers.common import as_dict, as_list, as_text, bounded, count, is_unset
 from handlers.context import ActionContext
 from handlers.errors import TEST_CODE_TEXT, ScraperError, describe_field_problems
-from handlers.runs import _config, slow_post
+from handlers.runs import _config, get_run, slow_post
+from handlers.table_samples import (
+    TABLE_PREVIEW_CHARS,
+    evidence_view,
+    table_feedback,
+    collect_table_obligations,
+    table_preservation_failures,
+    fallback_feedback,
+)
 
 EXPORT_FORMAT = "flowsteward.web-scraper.mappings.v1"
 SAMPLE_HTML_FOR_AGENT = 65536
@@ -122,10 +130,17 @@ def structural_problems(mappings: list[dict[str, Any]]) -> list[str]:
                 problems.append(f"{label}.{name}: needs between 1 and 5 sources")
             for source in sources:
                 kind = as_text(as_dict(source).get("kind"))
-                if kind not in {"jsonld", "microdata", "css", "meta", "spec_table"}:
+                if kind not in {
+                    "jsonld",
+                    "microdata",
+                    "css",
+                    "meta",
+                    "spec_table",
+                    "browser_table",
+                }:
                     problems.append(
                         f"{label}.{name}: source kind must be jsonld, microdata, css, meta or "
-                        "spec_table"
+                        "spec_table or browser_table"
                     )
                 if kind == "spec_table" and not all(
                     as_text(as_dict(source).get(key))
@@ -167,10 +182,7 @@ def _variant_problems(label: str, variants: Any) -> list[str]:
         name = as_text(field.get("name")) or "a variant field"
         if not field.get("name"):
             problems.append(f"{label}: a variants.fields entry has no name")
-        if (
-            sum(bool(field.get(key)) for key in ("path", "option", "selector_template"))
-            != 1
-        ):
+        if sum(bool(field.get(key)) for key in ("path", "option", "selector_template")) != 1:
             problems.append(
                 f"{label}: variants field {name} needs exactly one of path (price, sku, image, "
                 "availability, weight, raw.<path>), option (the option's name), or selector_template"
@@ -395,12 +407,15 @@ def variants_missing(
 def _agent_samples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Samples for the agent, the distilled HTML of all of them within SAMPLES_HTML_FOR_AGENT."""
     share = min(SAMPLE_HTML_FOR_AGENT, SAMPLES_HTML_FOR_AGENT // max(len(rows), 1))
-    return [_agent_sample(row, share) for row in rows]
+    return [_agent_sample(row, share, TABLE_PREVIEW_CHARS // max(len(rows), 1)) for row in rows]
 
 
-def _agent_sample(sample: dict[str, Any], limit: int = SAMPLE_HTML_FOR_AGENT) -> dict[str, Any]:
+def _agent_sample(
+    sample: dict[str, Any], limit: int = SAMPLE_HTML_FOR_AGENT, table_budget: int = 4000
+) -> dict[str, Any]:
     html = as_text(sample.get("distilled_html"))
     return {
+        **evidence_view(sample, table_budget),
         "sample_id": as_text(sample.get("sample_id")),
         "url": as_text(sample.get("url")),
         "title": as_text(sample.get("title")),
@@ -410,7 +425,10 @@ def _agent_sample(sample: dict[str, Any], limit: int = SAMPLE_HTML_FOR_AGENT) ->
         "distilled_html": html[:limit],
         "distilled_html_truncated": bool(sample.get("distilled_html_truncated"))
         or len(html) > limit,
-        "extracted": as_dict(sample.get("extracted")) or None,
+        # Full captured table values stay in the service, not in author/workflow state.
+        "extracted": None
+        if sample.get("table_captures") or sample.get("table_evidence")
+        else as_dict(sample.get("extracted")) or None,
         # A54 (contract row 63): shown / range / on_request / missing.
         "price_on_page": as_text(sample.get("price_on_page")) or None,
         # A54+ (contract row 70): the machine-readable price and a sale's old price.
@@ -529,11 +547,30 @@ def fetch_samples(ctx: ActionContext) -> dict[str, Any]:
     template_id = ctx.text("template_id")
     if template_id:
         body["template_id"] = template_id
+    raw_table_sources = ctx.input.get("table_sources")
+    if not is_unset(raw_table_sources) and not isinstance(raw_table_sources, list):
+        raise ScraperError(
+            "invalid_payload",
+            "table_sources must be an array of browser_table source objects.",
+            no_external_effect=True,
+        )
+    table_sources = as_list(raw_table_sources)
+    if table_sources:
+        body["table_sources"] = table_sources
     cause, after = _analysis_protection_hint(ctx)
     answer = as_dict(
         slow_post(ctx, "/v1/samples", body, what="the sample pages", cause=cause, after=after)
     )
     samples = [as_dict(row) for row in as_list(answer.get("samples"))]
+    if (
+        table_sources
+        and urls
+        and (len(samples) > len(urls) or {as_text(row.get("url")) for row in samples} != set(urls))
+    ):
+        raise ScraperError(
+            "no_samples",
+            "Table acquisition did not return every requested current sample URL; the candidate remains unverified.",
+        )
     warnings = [as_dict(row) for row in as_list(answer.get("warnings"))]
     traces = as_list(answer.get("protection_trace"))
     stopped = as_dict(answer.get("stopped"))
@@ -741,7 +778,18 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
         max(int(_number(ctx.input.get("max_refinements"), 2)), 0), MAX_REFINEMENTS
     )
     can_refine = attempt < 1 + max_refinements
+    obligations = collect_table_obligations(
+        mappings,
+        collect_table_obligations(
+            candidate_mappings(ctx.input.get("mappings"))[0],
+            as_list(ctx.input.get("table_obligations")),
+        ),
+    )
+    prior_warnings = as_list(ctx.input.get("last_passing_warnings"))
+    prior_summary = ctx.text("last_passing_summary")
     base = {
+        "table_obligations": obligations,
+        **fallback_feedback(prior_warnings, prior_summary, []),
         "mappings": mappings,
         "attempt": attempt,
         "attempts": attempt,
@@ -750,22 +798,40 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
         "sample_ids": sample_ids,
         "required_fill_threshold": threshold,
         "sample_results": [],
+        "variant_sample_ids": as_list(ctx.input.get("variant_sample_ids")),
+        "table_resample_needed": False,
+        "table_sources": [],
+        "table_sample_urls": [],
     }
     selector_warnings = target_selector_warnings(mappings, ctx.text("target_page_selector"))
     base["warnings"] = selector_warnings
     problems = format_problems or structural_problems(mappings)
-    if problems:
+    downgrades = table_preservation_failures(mappings, obligations)
+    table_shape_failures = (
+        [
+            {
+                "kind": "table_unverified",
+                "message": "The paginated-table candidate has structural problems and remains unverified.",
+            }
+        ]
+        if obligations and problems
+        else []
+    )
+    if problems or downgrades:
         return {
             **base,
+            **fallback_feedback(prior_warnings, prior_summary, downgrades + table_shape_failures),
             "passed": False,
             "templates": [],
             "field_results": [],
             "failures": [
                 {"kind": "format" if format_problems else "structure", "message": text}
                 for text in problems
-            ],
+            ]
+            + downgrades,
             "unmatched_sample_ids": [],
-            "summary": "The mapping has structural problems: " + "; ".join(problems),
+            "summary": "The mapping has structural problems: "
+            + "; ".join(problems + [row["message"] for row in downgrades]),
         }
     body: dict[str, Any] = {
         "site": site,
@@ -796,12 +862,23 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
             }
             for row in field_errors
         ] or [{"kind": "schema", "message": exc.message}]
+        table_schema_failures = (
+            [
+                {
+                    "kind": "table_unverified",
+                    "message": "The service refused the paginated-table candidate shape; table coverage remains unverified.",
+                }
+            ]
+            if obligations
+            else []
+        )
         return {
             **base,
+            **fallback_feedback(prior_warnings, prior_summary, table_schema_failures),
             "passed": False,
             "templates": [],
             "field_results": [],
-            "failures": schema_failures,
+            "failures": schema_failures + table_schema_failures,
             "unmatched_sample_ids": [],
             "summary": "The service refused the mapping's shape: "
             + "; ".join(
@@ -875,12 +952,8 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
     for sample in samples_out:
         template_id = as_text(sample.get("template_id"))
         mapping = mappings_by_template.get(template_id, {})
-        inclusion_fields = {
-            condition["field"] for condition in mapping.get("record_filter") or []
-        }
-        for name in dict.fromkeys(
-            as_text(field) for field in sample["missing_required"]
-        ):
+        inclusion_fields = {condition["field"] for condition in mapping.get("record_filter") or []}
+        for name in dict.fromkeys(as_text(field) for field in sample["missing_required"]):
             if not name:
                 continue
             reason = (
@@ -917,10 +990,27 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
     if missing:
         passed = False
         failures += missing
+    table = table_feedback(mappings, answer, sample_ids)
+    if table["table_failures"] and ctx.text("sampling_fetch_mode") == "http":
+        table.update(table_resample_needed=False, table_sources=[], table_sample_urls=[])
+        table["table_failures"].append(
+            {
+                "kind": "table_unverified",
+                "message": "Browser table evidence is unavailable in explicit HTTP mode; no acquisition was attempted.",
+            }
+        )
+    if table["table_failures"]:
+        passed = False
+        failures += table["table_failures"]
     warnings = (
         empty_field_warnings(answer, mappings, templates_out)
         + variant_warnings(templates_out, threshold)
         + selector_warnings
+        + [
+            {"kind": "table_unavailable", "message": as_text(as_dict(row).get("message"))[:600]}
+            for row in as_list(ctx.input.get("carried_table_warnings"))[:50]
+            if as_dict(row).get("kind") == "table_unavailable"
+        ]
     )
     lines = [
         f"{row['template_id']}.{row['name']}: {row['filled']} filled"
@@ -934,11 +1024,17 @@ def test_mapping(ctx: ActionContext) -> dict[str, Any]:
         for template in templates_out
         for gap in template["gaps"]
     ]
+    lines += [row["message"] for row in table["table_failures"]]
     prices = price_status_text(samples_out)
     if prices:
         lines.append(prices)
     return {
         **base,
+        **fallback_feedback(prior_warnings, prior_summary, table["table_failures"]),
+        "can_refine": can_refine and (not table["table_failures"] or table["table_resample_needed"]),
+        "table_resample_needed": table["table_resample_needed"],
+        "table_sources": table["table_sources"],
+        "table_sample_urls": table["table_sample_urls"],
         "passed": passed,
         "required_fill_threshold": answer.get("required_fill_threshold", threshold),
         "templates": templates_out,
@@ -1019,6 +1115,8 @@ def _sample_result(row: dict[str, Any]) -> dict[str, Any]:
         "template_id": row.get("template_id"),
         "missing_required": as_list(row.get("missing_required")),
     }
+    if row.get("table_coverage") is not None:
+        out["table_coverage"] = as_dict(row["table_coverage"])
     for key in ("price_on_page", "price_status", "price_max", "currency_from_default"):
         if row.get(key) is not None:
             out[key] = row.get(key)
@@ -1307,7 +1405,10 @@ def get_mapping_request(ctx: ActionContext) -> dict[str, Any]:
     instructions = as_dict(answer.get("instructions"))
     samples = [as_dict(row) for row in as_list(answer.get("samples"))]
     template_id = answer.get("template_id")
+    bound_run_id = as_text(answer.get("run_id"))
+    sampling_config = as_dict(get_run(ctx, bound_run_id).get("config")) if bound_run_id else {}
     return {
+        "sampling_config": sampling_config,
         "mapping_request_id": request_id,
         "run_id": as_text(answer.get("run_id")),
         "site": as_text(answer.get("site")),

@@ -576,6 +576,17 @@ inputs of **Scrape a site**; its strict interface refuses undeclared input field
   regexes for child sitemap URLs to skip; exclusion wins over inclusion. Declared roots
   are always read; excluding an index skips its descendants. Empty: none excluded.
 
+### Tables spread across several pages
+
+Describe the table data you need in **What to extract**. When the sample evidence
+supports it, the mapping workflow can collect that table on its current sample
+pages once and verify the mapping against the saved evidence. The mapping author
+has no browsing tools. This adds no controls to the ordinary run form.
+
+A table with unavailable or partial evidence cannot pass verification, including
+when its field is optional. The workflow keeps a previously verified mapping or
+reports the missing evidence; it never substitutes an unrelated scalar value.
+
 ## Links the scraper skips
 
 When the crawl walks a site, it does not follow every link. These rules keep it out
@@ -1001,3 +1012,5 @@ templates did not change, so the copies you imported keep working. 0.1.27 change
 only: setup step 1 builds the service with Docker Compose from its public repository
 https://github.com/Flow-Steward/web-scraper-service; no prebuilt service image is
 published. The templates did not change, so the copies you imported keep working.
+
+The Scraper events step **Test repair before activation** checks the repaired mapping offline against its returned sample evidence.

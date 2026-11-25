@@ -34,6 +34,8 @@ from flowsteward_extension_sdk.artifacts import (
     write_artifact_stream,
 )
 
+from handlers.table_samples import evidence_view
+
 from handlers.common import as_dict, as_list, as_text, count
 from handlers.context import ActionContext
 from handlers.errors import ScraperError
@@ -196,7 +198,8 @@ def _task_section(task: dict[str, Any]) -> list[str]:
             "",
             _block("json", _clean(previous_text)),
             "",
-            "### Failures and optional coverage feedback from the last test" + (" (shortened)" if failures_cut else ""),
+            "### Failures and optional coverage feedback from the last test"
+            + (" (shortened)" if failures_cut else ""),
             "",
             _block("json", _clean(failures_text)),
         ]
@@ -286,11 +289,19 @@ def render_samples(
             "",
             _block("html", _clean(html)),
         ]
+        if row.get("table_captures") or row.get("table_evidence"):
+            table, table_cut = _json(
+                evidence_view(row, 48000 // max(len(rows), 1)), 50000 // max(len(rows), 1)
+            )
+            parts += [
+                "",
+                "### Table capture evidence (readable previews; rows may be shortened)",
+                "",
+                _block("json", _clean(table)),
+            ]
         variant_sources = as_list(row.get("variant_sources"))
         variant_candidates = as_list(row.get("variant_candidates"))
-        variant_budget = min(
-            VARIANTS_MAX_CHARS, SAMPLES_VARIANTS_CHARS // max(len(rows), 1)
-        )
+        variant_budget = min(VARIANTS_MAX_CHARS, SAMPLES_VARIANTS_CHARS // max(len(rows), 1))
         if variant_sources and variant_candidates:
             variant_budget //= 2
         if variant_sources:
